@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Updated with correct project credentials
-const SUPABASE_URL = 'https://gxpmuacofsgpqxwerjgx.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4cG11YWNvZnNncHF4d2Vyamd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIxNDA5MTYsImV4cCI6MjA2NzcxNjkxNn0.bDmKLf6bKptltlycrnk15fK8IiZ0mn_JSimXla-xv1g'
+// Use environment variables for production security
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if(!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Missing Supabase environment variables')
+  throw new Error('Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
 }
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -17,3 +17,4 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 })
 
 export default supabase
+// For production, never commit your keys directly in code. Use environment variables and .env files.

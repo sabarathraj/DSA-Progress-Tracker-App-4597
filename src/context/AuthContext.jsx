@@ -66,17 +66,22 @@ export const AuthProvider = ({ children }) => {
 
   const createUserProfile = async (user) => {
     try {
+      console.log('Attempting to create user profile for:', user);
+
       // Check if profile already exists
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: selectError } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('user_id', user.id)
         .single();
 
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error('Error checking for existing profile:', selectError);
+        return;
+      }
+
       if (!existingProfile) {
-        console.log('Creating new user profile for:', user.id);
-        
-        // Insert new profile
+        console.log('No existing profile found. Inserting new profile...');
         const { error: insertError } = await supabase
           .from('user_profiles')
           .insert([
@@ -95,6 +100,8 @@ export const AuthProvider = ({ children }) => {
         } else {
           console.log('User profile created successfully');
         }
+      } else {
+        console.log('Profile already exists:', existingProfile);
       }
     } catch (error) {
       console.error('Error in createUserProfile:', error);
@@ -122,7 +129,12 @@ export const AuthProvider = ({ children }) => {
         setAuthError(error.message);
         return null;
       }
-      
+
+      // If user is returned immediately (email confirmation disabled), create profile now
+      if (data.user) {
+        await createUserProfile(data.user);
+      }
+
       return data;
     } catch (error) {
       console.error('Unexpected signup error:', error);

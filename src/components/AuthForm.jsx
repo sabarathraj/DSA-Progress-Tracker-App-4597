@@ -4,7 +4,7 @@ import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 
-const { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiLogIn, FiUserPlus, FiAlertCircle, FiX } = FiIcons;
+const { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiLogIn, FiUserPlus, FiAlertCircle, FiX, FiCode } = FiIcons;
 
 const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
