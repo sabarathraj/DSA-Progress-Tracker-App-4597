@@ -105,8 +105,6 @@ export const AuthProvider = ({ children }) => {
       
       if (error) throw error;
       return data;
-    } catch (error) {
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -122,23 +120,18 @@ export const AuthProvider = ({ children }) => {
       
       if (error) throw error;
       return data;
-    } catch (error) {
-      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   const signOut = async () => {
-    setLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
