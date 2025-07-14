@@ -3,11 +3,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
-const { FiX, FiSave, FiPlus, FiEdit3, FiAlertCircle, FiCheck, FiClock, FiStar } = FiIcons;
+const { 
+  FiX, FiSave, FiPlus, FiEdit3, FiAlertCircle, FiCheck, FiClock, 
+  FiStar, FiLink, FiTag, FiCode, FiBook
+} = FiIcons;
 
-const PLATFORMS = ['LeetCode', 'HackerRank', 'CodeForces', 'AtCoder', 'GeeksforGeeks', 'InterviewBit', 'Custom'];
-const TOPICS = ['Arrays', 'Strings', 'Linked Lists', 'Trees', 'Graphs', 'Dynamic Programming', 'Recursion', 'Backtracking', 'Greedy', 'Sorting', 'Searching', 'Bit Manipulation', 'Math', 'Two Pointers', 'Sliding Window', 'Stack', 'Queue', 'Heap', 'Hash Table', 'Trie'];
-const COMPANIES = ['Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 'Netflix', 'Adobe', 'Uber', 'LinkedIn', 'Twitter', 'Salesforce', 'Oracle', 'IBM', 'Tesla'];
+const PLATFORMS = [
+  'LeetCode', 'HackerRank', 'CodeForces', 'AtCoder', 
+  'GeeksforGeeks', 'InterviewBit', 'Custom'
+];
+
+const TOPICS = [
+  'Arrays', 'Strings', 'Linked Lists', 'Trees', 'Graphs', 
+  'Dynamic Programming', 'Recursion', 'Backtracking', 'Greedy', 
+  'Sorting', 'Searching', 'Bit Manipulation', 'Math', 
+  'Two Pointers', 'Sliding Window', 'Stack', 'Queue', 
+  'Heap', 'Hash Table', 'Trie'
+];
+
+const COMPANIES = [
+  'Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 
+  'Netflix', 'Adobe', 'Uber', 'LinkedIn', 'Twitter', 
+  'Salesforce', 'Oracle', 'IBM', 'Tesla'
+];
 
 const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => {
   const [formData, setFormData] = useState({
@@ -23,10 +41,13 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
     companies: '',
     xp: 10,
     estimated_time: 30,
-    priority: 'Medium'
+    priority: 'Medium',
+    status: 'Not Started'
   });
+  
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (editingProblem) {
@@ -39,11 +60,12 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
         platform: editingProblem.platform || 'LeetCode',
         problem_number: editingProblem.problem_number || '',
         url: editingProblem.url || '',
-        tags: editingProblem.tags ? editingProblem.tags.join(', ') : '',
-        companies: editingProblem.companies ? editingProblem.companies.join(', ') : '',
+        tags: Array.isArray(editingProblem.tags) ? editingProblem.tags.join(', ') : '',
+        companies: Array.isArray(editingProblem.companies) ? editingProblem.companies.join(', ') : '',
         xp: editingProblem.xp || 10,
         estimated_time: editingProblem.estimated_time || 30,
-        priority: editingProblem.priority || 'Medium'
+        priority: editingProblem.priority || 'Medium',
+        status: editingProblem.status || 'Not Started'
       });
     } else {
       resetForm();
@@ -64,34 +86,36 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
       companies: '',
       xp: 10,
       estimated_time: 30,
-      priority: 'Medium'
+      priority: 'Medium',
+      status: 'Not Started'
     });
     setErrors({});
+    setSuccessMessage('');
   };
 
   const validateForm = () => {
     const newErrors = {};
-
+    
     if (!formData.title.trim()) {
       newErrors.title = 'Title is required';
     }
-
+    
     if (!formData.topic.trim()) {
       newErrors.topic = 'Topic is required';
     }
-
+    
     if (formData.url && !isValidUrl(formData.url)) {
       newErrors.url = 'Please enter a valid URL';
     }
-
+    
     if (formData.xp < 1 || formData.xp > 100) {
       newErrors.xp = 'XP must be between 1 and 100';
     }
-
+    
     if (formData.estimated_time < 1 || formData.estimated_time > 480) {
       newErrors.estimated_time = 'Estimated time must be between 1 and 480 minutes';
     }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -111,22 +135,40 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
     if (!validateForm()) {
       return;
     }
-
+    
     setLoading(true);
-
+    setErrors({});
+    setSuccessMessage('');
+    
     try {
       const problemData = {
         ...formData,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-        companies: formData.companies.split(',').map(company => company.trim()).filter(company => company),
+        tags: formData.tags
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag),
+        companies: formData.companies
+          .split(',')
+          .map(company => company.trim())
+          .filter(company => company),
         xp: parseInt(formData.xp),
         estimated_time: parseInt(formData.estimated_time),
         problem_number: formData.problem_number ? parseInt(formData.problem_number) : null
       };
 
       await onSave(problemData);
-      onClose();
-      resetForm();
+      
+      if (editingProblem) {
+        setSuccessMessage('Problem updated successfully!');
+      } else {
+        resetForm();
+        setSuccessMessage('Problem added successfully!');
+      }
+      
+      setTimeout(() => {
+        setSuccessMessage('');
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('Error saving problem:', error);
       setErrors({ submit: 'Failed to save problem. Please try again.' });
@@ -137,6 +179,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -147,7 +190,11 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
       let xp = 10;
       if (value === 'Medium') xp = 20;
       if (value === 'Hard') xp = 30;
-      setFormData(prev => ({ ...prev, xp }));
+      
+      setFormData(prev => ({
+        ...prev,
+        xp
+      }));
     }
 
     // Clear specific error when user starts typing
@@ -161,41 +208,64 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
-      case 'Easy': return 'text-green-600 bg-green-100 border-green-200';
-      case 'Medium': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'Hard': return 'text-red-600 bg-red-100 border-red-200';
-      default: return 'text-gray-600 bg-gray-100 border-gray-200';
+      case 'Easy':
+        return 'text-green-600 bg-green-100 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-800';
+      case 'Medium':
+        return 'text-yellow-600 bg-yellow-100 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-800';
+      case 'Hard':
+        return 'text-red-600 bg-red-100 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800';
+      default:
+        return 'text-gray-600 bg-gray-100 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-700';
     }
   };
 
   const getPriorityIcon = (priority) => {
     switch (priority) {
-      case 'High': return FiStar;
-      case 'Medium': return FiClock;
-      case 'Low': return FiCheck;
-      default: return FiClock;
+      case 'High':
+        return FiStar;
+      case 'Medium':
+        return FiClock;
+      case 'Low':
+        return FiCheck;
+      default:
+        return FiClock;
     }
+  };
+
+  // Animation variants
+  const modalBackdropVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: 20 }
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           {/* Backdrop */}
-          <motion.div
+          <motion.div 
             className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            variants={modalBackdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={onClose}
           />
 
           {/* Modal */}
-          <motion.div
+          <motion.div 
             className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200 dark:border-gray-700"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             transition={{ duration: 0.2 }}
           >
             {/* Header */}
@@ -212,17 +282,37 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                     {editingProblem ? 'Edit Problem' : 'Add New Problem'}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {editingProblem ? 'Update problem details' : 'Create a custom problem to track your progress'}
+                    {editingProblem 
+                      ? 'Update problem details' 
+                      : 'Create a custom problem to track your progress'
+                    }
                   </p>
                 </div>
               </div>
-              <button
+              
+              <button 
                 onClick={onClose}
                 className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Close"
               >
                 <SafeIcon icon={FiX} className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Success Message */}
+            <AnimatePresence>
+              {successMessage && (
+                <motion.div 
+                  className="mb-6 p-4 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg flex items-center space-x-3"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <SafeIcon icon={FiCheck} className="w-5 h-5 text-success-500 flex-shrink-0" />
+                  <p className="text-sm text-success-700 dark:text-success-300">{successMessage}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -231,21 +321,24 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                 <div className="space-y-4">
                   {/* Title */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                      <SafeIcon icon={FiBook} className="w-4 h-4 mr-1" />
                       Problem Title *
                     </label>
-                    <input
+                    <input 
                       type="text"
                       name="title"
                       value={formData.title}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${
-                        errors.title ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                        errors.title 
+                          ? 'border-red-300 dark:border-red-800' 
+                          : 'border-gray-300 dark:border-gray-600'
                       }`}
                       placeholder="e.g., Two Sum, Binary Tree Inorder Traversal"
                     />
                     {errors.title && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
                         <SafeIcon icon={FiAlertCircle} className="w-4 h-4" />
                         <span>{errors.title}</span>
                       </p>
@@ -255,10 +348,11 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                   {/* Platform and Problem Number */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                        <SafeIcon icon={FiCode} className="w-4 h-4 mr-1" />
                         Platform
                       </label>
-                      <select
+                      <select 
                         name="platform"
                         value={formData.platform}
                         onChange={handleInputChange}
@@ -273,7 +367,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Problem #
                       </label>
-                      <input
+                      <input 
                         type="number"
                         name="problem_number"
                         value={formData.problem_number}
@@ -290,12 +384,14 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Topic *
                       </label>
-                      <select
+                      <select 
                         name="topic"
                         value={formData.topic}
                         onChange={handleInputChange}
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                          errors.topic ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                          errors.topic 
+                            ? 'border-red-300 dark:border-red-800' 
+                            : 'border-gray-300 dark:border-gray-600'
                         }`}
                       >
                         <option value="">Select Topic</option>
@@ -304,7 +400,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                         ))}
                       </select>
                       {errors.topic && (
-                        <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
+                        <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
                           <SafeIcon icon={FiAlertCircle} className="w-4 h-4" />
                           <span>{errors.topic}</span>
                         </p>
@@ -314,7 +410,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Subtopic
                       </label>
-                      <input
+                      <input 
                         type="text"
                         name="subtopic"
                         value={formData.subtopic}
@@ -331,7 +427,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Difficulty
                       </label>
-                      <select
+                      <select 
                         name="difficulty"
                         value={formData.difficulty}
                         onChange={handleInputChange}
@@ -346,19 +442,21 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         XP Points
                       </label>
-                      <input
+                      <input 
                         type="number"
                         name="xp"
                         value={formData.xp}
                         onChange={handleInputChange}
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                          errors.xp ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                          errors.xp 
+                            ? 'border-red-300 dark:border-red-800' 
+                            : 'border-gray-300 dark:border-gray-600'
                         }`}
                         min="1"
                         max="100"
                       />
                       {errors.xp && (
-                        <p className="mt-1 text-xs text-red-600">{errors.xp}</p>
+                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.xp}</p>
                       )}
                     </div>
                     <div>
@@ -366,7 +464,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                         Priority
                       </label>
                       <div className="relative">
-                        <select
+                        <select 
                           name="priority"
                           value={formData.priority}
                           onChange={handleInputChange}
@@ -384,25 +482,45 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                     </div>
                   </div>
 
-                  {/* Estimated Time */}
+                  {/* Status */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Status
+                    </label>
+                    <select 
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="Not Started">Not Started</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Done">Done</option>
+                    </select>
+                  </div>
+
+                  {/* Estimated Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                      <SafeIcon icon={FiClock} className="w-4 h-4 mr-1" />
                       Estimated Time (minutes)
                     </label>
-                    <input
+                    <input 
                       type="number"
                       name="estimated_time"
                       value={formData.estimated_time}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                        errors.estimated_time ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                        errors.estimated_time 
+                          ? 'border-red-300 dark:border-red-800' 
+                          : 'border-gray-300 dark:border-gray-600'
                       }`}
                       min="1"
                       max="480"
                       placeholder="e.g., 30"
                     />
                     {errors.estimated_time && (
-                      <p className="mt-1 text-sm text-red-600">{errors.estimated_time}</p>
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.estimated_time}</p>
                     )}
                   </div>
                 </div>
@@ -414,7 +532,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Description
                     </label>
-                    <textarea
+                    <textarea 
                       name="description"
                       value={formData.description}
                       onChange={handleInputChange}
@@ -426,21 +544,24 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
 
                   {/* URL */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                      <SafeIcon icon={FiLink} className="w-4 h-4 mr-1" />
                       Problem URL
                     </label>
-                    <input
+                    <input 
                       type="url"
                       name="url"
                       value={formData.url}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                        errors.url ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
+                        errors.url 
+                          ? 'border-red-300 dark:border-red-800' 
+                          : 'border-gray-300 dark:border-gray-600'
                       }`}
                       placeholder="https://leetcode.com/problems/two-sum/"
                     />
                     {errors.url && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center space-x-1">
+                      <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
                         <SafeIcon icon={FiAlertCircle} className="w-4 h-4" />
                         <span>{errors.url}</span>
                       </p>
@@ -449,10 +570,11 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
 
                   {/* Tags */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                      <SafeIcon icon={FiTag} className="w-4 h-4 mr-1" />
                       Tags (comma-separated)
                     </label>
-                    <input
+                    <input 
                       type="text"
                       name="tags"
                       value={formData.tags}
@@ -470,7 +592,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Companies (comma-separated)
                     </label>
-                    <input
+                    <input 
                       type="text"
                       name="companies"
                       value={formData.companies}
@@ -490,14 +612,17 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {COMPANIES.slice(0, 6).map(company => (
-                        <button
+                        <button 
                           key={company}
                           type="button"
                           onClick={() => {
                             const currentCompanies = formData.companies.split(',').map(c => c.trim()).filter(c => c);
                             if (!currentCompanies.includes(company)) {
-                              const newCompanies = [...currentCompanies, company].join(', ');
-                              setFormData(prev => ({ ...prev, companies: newCompanies }));
+                              const newCompanies = [...currentCompanies, company].join(',');
+                              setFormData(prev => ({
+                                ...prev,
+                                companies: newCompanies
+                              }));
                             }
                           }}
                           className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded hover:bg-primary-100 dark:hover:bg-primary-900 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
@@ -522,7 +647,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
 
               {/* Buttons */}
               <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <button
+                <button 
                   type="button"
                   onClick={onClose}
                   disabled={loading}
@@ -530,7 +655,7 @@ const AddProblemModal = ({ isOpen, onClose, onSave, editingProblem = null }) => 
                 >
                   Cancel
                 </button>
-                <motion.button
+                <motion.button 
                   type="submit"
                   disabled={loading}
                   className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"

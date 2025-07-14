@@ -15,20 +15,25 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     // Get initial session
     const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        const { data, error } = await supabase.auth.getSession();
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (error) {
+          console.error('Error getting auth session:', error);
+          return;
+        }
+        
+        setSession(data.session);
+        setUser(data.session?.user || null);
         
         // If user exists but no profile, create one
-        if (session?.user && !session.user.user_metadata?.profile_created) {
-          await createUserProfile(session.user);
+        if (data.session?.user) {
+          await createUserProfile(data.session.user);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -44,20 +49,24 @@ export const AuthProvider = ({ children }) => {
       async (event, session) => {
         console.log('Auth state changed:', event);
         setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
+        setUser(session?.user || null);
+        
         if (event === 'SIGNED_IN' && session?.user) {
           await createUserProfile(session.user);
         }
+        
+        setLoading(false);
       }
     );
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const createUserProfile = async (user) => {
     try {
+      // Check if profile already exists
       const { data: existingProfile } = await supabase
         .from('user_profiles')
         .select('id')
@@ -65,7 +74,10 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       if (!existingProfile) {
-        const { error } = await supabase
+        console.log('Creating new user profile for:', user.id);
+        
+        // Insert new profile
+        const { error: insertError } = await supabase
           .from('user_profiles')
           .insert([
             {
@@ -78,8 +90,8 @@ export const AuthProvider = ({ children }) => {
             }
           ]);
 
-        if (error) {
-          console.error('Error creating user profile:', error);
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
         } else {
           console.log('User profile created successfully');
         }
@@ -91,6 +103,8 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async (email, password, userData = {}) => {
     setLoading(true);
+    setAuthError(null);
+    
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -103,8 +117,17 @@ export const AuthProvider = ({ children }) => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        setAuthError(error.message);
+        return null;
+      }
+      
       return data;
+    } catch (error) {
+      console.error('Unexpected signup error:', error);
+      setAuthError(error.message || 'An unexpected error occurred during sign up');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -112,52 +135,100 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email, password) => {
     setLoading(true);
+    setAuthError(null);
+    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        setAuthError(error.message);
+        return null;
+      }
+      
       return data;
+    } catch (error) {
+      console.error('Unexpected login error:', error);
+      setAuthError(error.message || 'An unexpected error occurred during sign in');
+      return null;
     } finally {
       setLoading(false);
     }
   };
 
   const signOut = async () => {
+    setLoading(true);
+    
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Signout error:', error);
+        setAuthError(error.message);
+      }
     } catch (error) {
-      console.error('Error signing out:', error);
-      throw error;
+      console.error('Unexpected signout error:', error);
+      setAuthError(error.message || 'An unexpected error occurred during sign out');
+    } finally {
+      setLoading(false);
     }
   };
 
   const resetPassword = async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
+    setLoading(true);
+    setAuthError(null);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      
+      if (error) {
+        setAuthError(error.message);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      setAuthError(error.message || 'An unexpected error occurred');
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateProfile = async (updates) => {
-    const { data, error } = await supabase.auth.updateUser({
-      data: updates
-    });
-    
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: updates
+      });
+      
+      if (error) {
+        console.error('Error updating user:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Unexpected error updating profile:', error);
+      return null;
+    }
   };
 
   const value = {
     user,
     session,
     loading,
+    authError,
     signUp,
     signIn,
     signOut,
     resetPassword,
-    updateProfile
+    updateProfile,
+    setAuthError
   };
 
   return (

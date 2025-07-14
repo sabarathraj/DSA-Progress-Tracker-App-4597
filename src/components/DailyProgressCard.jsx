@@ -1,46 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useDatabase } from '../context/DatabaseContext';
+import { format } from 'date-fns';
 
 const { FiTarget, FiTrendingUp, FiFire, FiClock, FiCheckCircle, FiEdit3, FiSave, FiX } = FiIcons;
 
 const DailyProgressCard = () => {
-  const { userProfile, dailyProgress, updateUserProfile } = useDatabase();
+  const { userProfile, dailyProgress, updateUserProfile, problems } = useDatabase();
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   // Get today's progress
-  const today = new Date().toISOString().split('T')[0];
-  const todayProgress = dailyProgress.find(p => p.date === today) || {
-    problems_solved: 0,
-    problems_attempted: 0,
-    daily_goal: userProfile?.daily_goal || 1,
-    goal_achieved: false,
-    xp_earned: 0,
-    total_time_spent: 0
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const todayProgress = dailyProgress.find(p => p.date === today);
+  
+  // Calculate solved problems for today
+  const solvedToday = problems.filter(p => 
+    p.status === 'Done' && 
+    p.updated_at && 
+    format(new Date(p.updated_at), 'yyyy-MM-dd') === today
+  ).length;
+  
+  const dailyGoal = userProfile?.daily_goal || 1;
+  const isGoalAchieved = solvedToday >= dailyGoal;
+  
+  // Prepare data for display
+  const displayData = {
+    solved: solvedToday,
+    goal: dailyGoal,
+    achieved: isGoalAchieved,
+    streak: userProfile?.current_streak || 0,
+    xpEarned: solvedToday * 10, // Simplified XP calculation
   };
 
   useEffect(() => {
     if (userProfile) {
-      setNewGoal(userProfile.daily_goal);
+      setNewGoal(userProfile.daily_goal || 1);
     }
   }, [userProfile]);
 
   const progressPercentage = Math.min(
-    (todayProgress.problems_solved / todayProgress.daily_goal) * 100,
+    (displayData.solved / displayData.goal) * 100,
     100
   );
 
   const handleGoalUpdate = async () => {
+    if (loading) return;
+    
     try {
+      setLoading(true);
+      
       if (newGoal > 0 && newGoal <= 50) {
         await updateUserProfile({ daily_goal: newGoal });
         setIsEditingGoal(false);
       }
     } catch (error) {
       console.error('Error updating daily goal:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,6 +71,7 @@ const DailyProgressCard = () => {
 
   const getStreakMessage = () => {
     const streak = userProfile?.current_streak || 0;
+    
     if (streak === 0) return "Start your streak today! 🚀";
     if (streak === 1) return "Great start! Keep it going! 💪";
     if (streak < 7) return "Building momentum! 🔥";
@@ -66,7 +87,7 @@ const DailyProgressCard = () => {
   };
 
   return (
-    <motion.div
+    <motion.div 
       className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -83,75 +104,64 @@ const DailyProgressCard = () => {
               Daily Progress
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+              {format(new Date(), 'EEEE, MMMM d')}
             </p>
           </div>
         </div>
 
         {/* Achievement Badge */}
-        {todayProgress.goal_achieved && (
-          <motion.div
-            className="flex items-center space-x-2 bg-success-100 dark:bg-success-900 px-3 py-1 rounded-full"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-          >
-            <SafeIcon icon={FiCheckCircle} className="w-4 h-4 text-success-600 dark:text-success-400" />
-            <span className="text-sm font-medium text-success-600 dark:text-success-400">
-              Goal Achieved!
-            </span>
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {displayData.achieved && (
+            <motion.div 
+              className="flex items-center space-x-2 bg-success-100 dark:bg-success-900 px-3 py-1 rounded-full"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            >
+              <SafeIcon icon={FiCheckCircle} className="w-4 h-4 text-success-600 dark:text-success-400" />
+              <span className="text-sm font-medium text-success-600 dark:text-success-400">
+                Goal Achieved!
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Progress Circle */}
       <div className="flex items-center justify-center mb-6">
         <div className="relative w-32 h-32">
           <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
-            <circle
-              cx="60"
-              cy="60"
-              r="54"
-              stroke="currentColor"
-              strokeWidth="6"
-              fill="none"
-              className="text-gray-200 dark:text-gray-700"
+            <circle 
+              cx="60" 
+              cy="60" 
+              r="54" 
+              stroke="currentColor" 
+              strokeWidth="12" 
+              fill="none" 
+              className="text-gray-200 dark:text-gray-700" 
             />
-            <motion.circle
-              cx="60"
-              cy="60"
-              r="54"
-              stroke="currentColor"
-              strokeWidth="6"
-              fill="none"
-              strokeLinecap="round"
-              className={`${
-                todayProgress.goal_achieved
-                  ? 'text-success-500'
-                  : progressPercentage > 75
-                  ? 'text-primary-500'
-                  : progressPercentage > 50
-                  ? 'text-warning-500'
-                  : 'text-gray-400'
-              }`}
+            <motion.circle 
+              cx="60" 
+              cy="60" 
+              r="54" 
+              stroke="currentColor" 
+              strokeWidth="12" 
+              fill="none" 
+              strokeLinecap="round" 
+              className={`${displayData.achieved ? 'text-success-500' : progressPercentage > 75 ? 'text-primary-500' : progressPercentage > 50 ? 'text-warning-500' : 'text-gray-400'}`}
               initial={{ strokeDasharray: "0 339.292" }}
-              animate={{
-                strokeDasharray: `${(progressPercentage / 100) * 339.292} 339.292`
-              }}
+              animate={{ strokeDasharray: `${(progressPercentage / 100) * 339.292} 339.292` }}
               transition={{ duration: 1, ease: "easeInOut" }}
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {todayProgress.problems_solved}
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                {displayData.solved}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                of {todayProgress.daily_goal}
+                of {displayData.goal}
               </div>
               <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 {Math.round(progressPercentage)}%
@@ -166,19 +176,19 @@ const DailyProgressCard = () => {
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
           <SafeIcon icon={FiTrendingUp} className="w-4 h-4 text-primary-500 mx-auto mb-1" />
           <div className="text-lg font-semibold text-gray-900 dark:text-white">
-            {todayProgress.problems_attempted}
+            {problems.filter(p => p.status === 'In Progress').length}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            Attempted
+            In Progress
           </div>
         </div>
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
           <SafeIcon icon={FiClock} className="w-4 h-4 text-warning-500 mx-auto mb-1" />
           <div className="text-lg font-semibold text-gray-900 dark:text-white">
-            {formatTime(todayProgress.total_time_spent || 0)}
+            {formatTime(displayData.xpEarned)}
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            Time Spent
+            Estimated Time
           </div>
         </div>
       </div>
@@ -192,33 +202,40 @@ const DailyProgressCard = () => {
               Daily Goal:
             </span>
           </div>
-
+          
           {isEditingGoal ? (
             <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                value={newGoal}
-                onChange={(e) => setNewGoal(parseInt(e.target.value) || 1)}
+              <input 
+                type="number" 
+                value={newGoal} 
+                onChange={(e) => setNewGoal(parseInt(e.target.value) || 1)} 
                 className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                min="1"
+                min="1" 
                 max="50"
+                disabled={loading}
               />
-              <button
-                onClick={handleGoalUpdate}
+              <button 
+                onClick={handleGoalUpdate} 
                 className="p-1 text-success-600 dark:text-success-400 hover:bg-success-100 dark:hover:bg-success-900 rounded transition-colors"
+                disabled={loading}
               >
-                <SafeIcon icon={FiSave} className="w-4 h-4" />
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-success-600 dark:border-success-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <SafeIcon icon={FiSave} className="w-4 h-4" />
+                )}
               </button>
-              <button
-                onClick={handleGoalCancel}
+              <button 
+                onClick={handleGoalCancel} 
                 className="p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
+                disabled={loading}
               >
                 <SafeIcon icon={FiX} className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setIsEditingGoal(true)}
+            <button 
+              onClick={() => setIsEditingGoal(true)} 
               className="flex items-center space-x-1 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900 px-2 py-1 rounded transition-colors"
             >
               <span className="text-sm font-medium">
@@ -240,7 +257,7 @@ const DailyProgressCard = () => {
             </span>
           </div>
           <span className="text-lg font-bold text-orange-700 dark:text-orange-300">
-            {userProfile?.current_streak || 0} days
+            {displayData.streak} days
           </span>
         </div>
         <p className="text-xs text-orange-600 dark:text-orange-400">
@@ -249,14 +266,14 @@ const DailyProgressCard = () => {
       </div>
 
       {/* XP Progress */}
-      {todayProgress.xp_earned > 0 && (
+      {displayData.xpEarned > 0 && (
         <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
               XP Earned Today
             </span>
             <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
-              +{todayProgress.xp_earned} XP
+              +{displayData.xpEarned} XP
             </span>
           </div>
         </div>
