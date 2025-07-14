@@ -2,59 +2,19 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
-import { useDatabase } from '../context/DatabaseContext';
-import DailyProgressCard from '../components/DailyProgressCard';
+import { useDSA } from '../context/DSAContext';
+import DailyTracker from '../components/DailyTracker';
 import ProgressOverview from '../components/ProgressOverview';
 import StreakCounter from '../components/StreakCounter';
 import BadgeShowcase from '../components/BadgeShowcase';
 import CalendarHeatmap from '../components/CalendarHeatmap';
 import RecentActivity from '../components/RecentActivity';
 
-const { FiTrendingUp, FiTarget, FiZap, FiAward, FiUser } = FiIcons;
+const { FiTrendingUp, FiTarget, FiZap, FiAward } = FiIcons;
 
 const Dashboard = () => {
-  const { userProfile, problems, dailyProgress, loading } = useDatabase();
-
-  // Calculate stats
-  const solvedProblems = problems.filter(p => p.status === 'Done').length;
-  const totalProblems = problems.length;
-  const progressPercentage = totalProblems > 0 ? Math.round((solvedProblems / totalProblems) * 100) : 0;
-  const totalXP = userProfile?.total_xp || 0;
-  const currentLevel = userProfile?.level_id || 1;
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    const name = userProfile?.full_name?.split(' ')[0] || 'there';
-    
-    if (hour < 12) return `Good morning, ${name}!`;
-    if (hour < 18) return `Good afternoon, ${name}!`;
-    return `Good evening, ${name}!`;
-  };
-
-  const getMotivationalMessage = () => {
-    const streak = userProfile?.current_streak || 0;
-    
-    if (streak === 0) {
-      return "Ready to start your coding journey today? 🚀";
-    } else if (streak < 7) {
-      return `${streak} day streak! You're building great habits! 💪`;
-    } else if (streak < 30) {
-      return `Amazing ${streak} day streak! Keep the momentum going! 🔥`;
-    } else {
-      return `Incredible ${streak} day streak! You're a coding legend! 👑`;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const { getStats, getMotivationalMessage } = useDSA();
+  const stats = getStats();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -88,34 +48,12 @@ const Dashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {getGreeting()} 👋
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {getMotivationalMessage()}
-              </p>
-            </div>
-            
-            {/* User Level Badge */}
-            <motion.div
-              className="flex items-center space-x-3 bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="p-2 bg-gradient-to-r from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 rounded-lg">
-                <SafeIcon icon={FiUser} className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Level {currentLevel}
-                </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {totalXP} XP
-                </div>
-              </div>
-            </motion.div>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Welcome back! 👋
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {getMotivationalMessage()}
+          </p>
         </motion.div>
 
         {/* Stats Cards */}
@@ -133,10 +71,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Progress</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {progressPercentage}%
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {solvedProblems} of {totalProblems} problems
+                  {stats.progressPercentage}%
                 </p>
               </div>
               <div className="p-3 bg-primary-100 dark:bg-primary-900 rounded-lg">
@@ -144,11 +79,9 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="mt-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <motion.div
-                className="bg-primary-500 h-2 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercentage}%` }}
-                transition={{ duration: 1, delay: 0.5 }}
+              <div
+                className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${stats.progressPercentage}%` }}
               />
             </div>
           </motion.div>
@@ -161,10 +94,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Solved</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {solvedProblems}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Total problems completed
+                  {stats.solvedProblems}/{stats.totalProblems}
                 </p>
               </div>
               <div className="p-3 bg-success-100 dark:bg-success-900 rounded-lg">
@@ -179,18 +109,18 @@ const Dashboard = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Current Streak</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Level</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {userProfile?.current_streak || 0}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {userProfile?.current_streak === 1 ? 'day' : 'days'} in a row
+                  {stats.level}
                 </p>
               </div>
               <div className="p-3 bg-warning-100 dark:bg-warning-900 rounded-lg">
                 <SafeIcon icon={FiZap} className="w-6 h-6 text-warning-600 dark:text-warning-400" />
               </div>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              {stats.xpToNextLevel} XP to next level
+            </p>
           </motion.div>
 
           <motion.div
@@ -201,23 +131,12 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total XP</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {totalXP}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Level {currentLevel}
+                  {stats.totalXP}
                 </p>
               </div>
               <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
                 <SafeIcon icon={FiAward} className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
-            </div>
-            <div className="mt-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <motion.div
-                className="bg-purple-500 h-2 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${((totalXP % 100) / 100) * 100}%` }}
-                transition={{ duration: 1, delay: 0.7 }}
-              />
             </div>
           </motion.div>
         </motion.div>
@@ -232,7 +151,7 @@ const Dashboard = () => {
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
             <motion.div variants={itemVariants}>
-              <DailyProgressCard />
+              <DailyTracker />
             </motion.div>
             <motion.div variants={itemVariants}>
               <ProgressOverview />

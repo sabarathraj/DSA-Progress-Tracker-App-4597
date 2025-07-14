@@ -4,9 +4,9 @@ import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useDSA } from '../context/DSAContext';
 
-const { FiExternalLink, FiEdit3, FiSave, FiX, FiCheck, FiClock, FiPlay, FiTrash2 } = FiIcons;
+const { FiExternalLink, FiEdit3, FiSave, FiX, FiCheck, FiClock, FiPlay } = FiIcons;
 
-const ProblemCard = ({ problem, onEdit, onDelete }) => {
+const ProblemCard = ({ problem }) => {
   const { updateProblemStatus, notes, addNote } = useDSA();
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(notes[problem.id] || '');
@@ -74,51 +74,27 @@ const ProblemCard = ({ problem, onEdit, onDelete }) => {
             </span>
           </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          {/* Edit Button */}
-          <button
-            onClick={() => onEdit(problem)}
-            className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-          >
-            <SafeIcon icon={FiEdit3} className="w-4 h-4" />
-          </button>
-          
-          {/* Delete Button */}
-          <button
-            onClick={() => onDelete(problem.id)}
-            className="p-2 text-gray-400 hover:text-danger-600 dark:hover:text-danger-400 transition-colors"
-          >
-            <SafeIcon icon={FiTrash2} className="w-4 h-4" />
-          </button>
-          
-          {/* External Link */}
-          {problem.url && (
-            <a
-              href={problem.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            >
-              <SafeIcon icon={FiExternalLink} className="w-4 h-4" />
-            </a>
-          )}
-        </div>
+        <a
+          href={problem.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+        >
+          <SafeIcon icon={FiExternalLink} className="w-4 h-4" />
+        </a>
       </div>
 
       {/* Tags */}
-      {problem.tags && problem.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {problem.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {problem.tags.map((tag) => (
+          <span
+            key={tag}
+            className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
 
       {/* Status */}
       <div className="flex items-center justify-between mb-4">

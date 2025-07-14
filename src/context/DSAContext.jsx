@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useDatabase } from './DatabaseContext';
-import { useAuth } from './AuthContext';
-import { format, isToday, parseISO, differenceInDays } from 'date-fns';
+import { format, isToday, parseISO, differenceInDays, startOfDay } from 'date-fns';
 
 const DSAContext = createContext();
 
@@ -12,6 +10,47 @@ export const useDSA = () => {
   }
   return context;
 };
+
+const initialProblems = [
+  // Arrays
+  { id: 1, title: 'Two Sum', difficulty: 'Easy', topic: 'Arrays', status: 'Not Started', xp: 10, tags: ['Hash Table'], url: 'https://leetcode.com/problems/two-sum/' },
+  { id: 2, title: 'Best Time to Buy and Sell Stock', difficulty: 'Easy', topic: 'Arrays', status: 'Not Started', xp: 10, tags: ['Dynamic Programming'], url: 'https://leetcode.com/problems/best-time-to-buy-and-sell-stock/' },
+  { id: 3, title: 'Contains Duplicate', difficulty: 'Easy', topic: 'Arrays', status: 'Not Started', xp: 10, tags: ['Hash Table'], url: 'https://leetcode.com/problems/contains-duplicate/' },
+  { id: 4, title: 'Product of Array Except Self', difficulty: 'Medium', topic: 'Arrays', status: 'Not Started', xp: 20, tags: ['Prefix Sum'], url: 'https://leetcode.com/problems/product-of-array-except-self/' },
+  { id: 5, title: 'Maximum Subarray', difficulty: 'Medium', topic: 'Arrays', status: 'Not Started', xp: 20, tags: ['Dynamic Programming'], url: 'https://leetcode.com/problems/maximum-subarray/' },
+  
+  // Strings
+  { id: 6, title: 'Valid Anagram', difficulty: 'Easy', topic: 'Strings', status: 'Not Started', xp: 10, tags: ['Hash Table'], url: 'https://leetcode.com/problems/valid-anagram/' },
+  { id: 7, title: 'Valid Parentheses', difficulty: 'Easy', topic: 'Strings', status: 'Not Started', xp: 10, tags: ['Stack'], url: 'https://leetcode.com/problems/valid-parentheses/' },
+  { id: 8, title: 'Longest Substring Without Repeating Characters', difficulty: 'Medium', topic: 'Strings', status: 'Not Started', xp: 20, tags: ['Sliding Window'], url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' },
+  
+  // Linked Lists
+  { id: 9, title: 'Reverse Linked List', difficulty: 'Easy', topic: 'Linked Lists', status: 'Not Started', xp: 10, tags: ['Recursion'], url: 'https://leetcode.com/problems/reverse-linked-list/' },
+  { id: 10, title: 'Merge Two Sorted Lists', difficulty: 'Easy', topic: 'Linked Lists', status: 'Not Started', xp: 10, tags: ['Recursion'], url: 'https://leetcode.com/problems/merge-two-sorted-lists/' },
+  { id: 11, title: 'Linked List Cycle', difficulty: 'Easy', topic: 'Linked Lists', status: 'Not Started', xp: 10, tags: ['Two Pointers'], url: 'https://leetcode.com/problems/linked-list-cycle/' },
+  
+  // Trees
+  { id: 12, title: 'Maximum Depth of Binary Tree', difficulty: 'Easy', topic: 'Trees', status: 'Not Started', xp: 10, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/maximum-depth-of-binary-tree/' },
+  { id: 13, title: 'Same Tree', difficulty: 'Easy', topic: 'Trees', status: 'Not Started', xp: 10, tags: ['DFS'], url: 'https://leetcode.com/problems/same-tree/' },
+  { id: 14, title: 'Binary Tree Inorder Traversal', difficulty: 'Easy', topic: 'Trees', status: 'Not Started', xp: 10, tags: ['DFS'], url: 'https://leetcode.com/problems/binary-tree-inorder-traversal/' },
+  { id: 15, title: 'Validate Binary Search Tree', difficulty: 'Medium', topic: 'Trees', status: 'Not Started', xp: 20, tags: ['DFS'], url: 'https://leetcode.com/problems/validate-binary-search-tree/' },
+  
+  // Dynamic Programming
+  { id: 16, title: 'Climbing Stairs', difficulty: 'Easy', topic: 'Dynamic Programming', status: 'Not Started', xp: 10, tags: ['Math'], url: 'https://leetcode.com/problems/climbing-stairs/' },
+  { id: 17, title: 'House Robber', difficulty: 'Medium', topic: 'Dynamic Programming', status: 'Not Started', xp: 20, tags: ['Array'], url: 'https://leetcode.com/problems/house-robber/' },
+  { id: 18, title: 'Coin Change', difficulty: 'Medium', topic: 'Dynamic Programming', status: 'Not Started', xp: 20, tags: ['BFS'], url: 'https://leetcode.com/problems/coin-change/' },
+  
+  // Graphs
+  { id: 19, title: 'Number of Islands', difficulty: 'Medium', topic: 'Graphs', status: 'Not Started', xp: 20, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/number-of-islands/' },
+  { id: 20, title: 'Clone Graph', difficulty: 'Medium', topic: 'Graphs', status: 'Not Started', xp: 20, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/clone-graph/' },
+  
+  // Hard Problems
+  { id: 21, title: 'Median of Two Sorted Arrays', difficulty: 'Hard', topic: 'Arrays', status: 'Not Started', xp: 30, tags: ['Binary Search'], url: 'https://leetcode.com/problems/median-of-two-sorted-arrays/' },
+  { id: 22, title: 'Trapping Rain Water', difficulty: 'Hard', topic: 'Arrays', status: 'Not Started', xp: 30, tags: ['Two Pointers', 'Stack'], url: 'https://leetcode.com/problems/trapping-rain-water/' },
+  { id: 23, title: 'Serialize and Deserialize Binary Tree', difficulty: 'Hard', topic: 'Trees', status: 'Not Started', xp: 30, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/serialize-and-deserialize-binary-tree/' },
+  { id: 24, title: 'Word Ladder', difficulty: 'Hard', topic: 'Graphs', status: 'Not Started', xp: 30, tags: ['BFS'], url: 'https://leetcode.com/problems/word-ladder/' },
+  { id: 25, title: 'Edit Distance', difficulty: 'Hard', topic: 'Dynamic Programming', status: 'Not Started', xp: 30, tags: ['String'], url: 'https://leetcode.com/problems/edit-distance/' },
+];
 
 const motivationalQuotes = [
   "Every expert was once a beginner. Keep coding! 💪",
@@ -40,95 +79,92 @@ const badges = [
 ];
 
 export const DSAProvider = ({ children }) => {
-  const { user } = useAuth();
-  const { problems, dailyProgress, userProfile, updateProblem, updateUserProfile } = useDatabase();
-  const [userBadges, setUserBadges] = useState(badges);
-  const [notes, setNotes] = useState({});
-  const [streak, setStreak] = useState({ current: 0, longest: 0 });
+  const [problems, setProblems] = useState(() => {
+    const saved = localStorage.getItem('dsa_problems');
+    return saved ? JSON.parse(saved) : initialProblems;
+  });
 
-  // Load user data from localStorage as fallback
+  const [dailyProgress, setDailyProgress] = useState(() => {
+    const saved = localStorage.getItem('dsa_daily_progress');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [dailyGoal, setDailyGoal] = useState(() => {
+    const saved = localStorage.getItem('dsa_daily_goal');
+    return saved ? parseInt(saved) : 1;
+  });
+
+  const [streak, setStreak] = useState(() => {
+    const saved = localStorage.getItem('dsa_streak');
+    return saved ? JSON.parse(saved) : { current: 0, longest: 0 };
+  });
+
+  const [userBadges, setUserBadges] = useState(() => {
+    const saved = localStorage.getItem('dsa_badges');
+    return saved ? JSON.parse(saved) : badges;
+  });
+
+  const [notes, setNotes] = useState(() => {
+    const saved = localStorage.getItem('dsa_notes');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Save to localStorage whenever state changes
   useEffect(() => {
-    if (user) {
-      const savedNotes = localStorage.getItem(`dsa_notes_${user.id}`);
-      if (savedNotes) {
-        setNotes(JSON.parse(savedNotes));
-      }
-
-      const savedBadges = localStorage.getItem(`dsa_badges_${user.id}`);
-      if (savedBadges) {
-        setUserBadges(JSON.parse(savedBadges));
-      }
-    }
-  }, [user]);
-
-  // Save notes to localStorage
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`dsa_notes_${user.id}`, JSON.stringify(notes));
-    }
-  }, [notes, user]);
-
-  // Save badges to localStorage
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(`dsa_badges_${user.id}`, JSON.stringify(userBadges));
-    }
-  }, [userBadges, user]);
-
-  // Calculate streak from database data
-  useEffect(() => {
-    if (userProfile) {
-      setStreak({
-        current: userProfile.current_streak || 0,
-        longest: userProfile.longest_streak || 0
-      });
-    }
-  }, [userProfile]);
-
-  // Check for badge unlocks whenever problems change
-  useEffect(() => {
-    if (problems.length > 0) {
-      checkBadgeUnlocks();
-    }
+    localStorage.setItem('dsa_problems', JSON.stringify(problems));
   }, [problems]);
 
-  const updateProblemStatus = async (problemId, status) => {
-    try {
-      await updateProblem(problemId, { status });
-      
-      if (status === 'Done') {
-        checkBadgeUnlocks();
-        await updateStreakAndXP();
-      }
-    } catch (error) {
-      console.error('Error updating problem status:', error);
-    }
-  };
+  useEffect(() => {
+    localStorage.setItem('dsa_daily_progress', JSON.stringify(dailyProgress));
+  }, [dailyProgress]);
 
-  const updateStreakAndXP = async () => {
-    const solvedProblems = problems.filter(p => p.status === 'Done');
-    const totalXP = solvedProblems.reduce((sum, p) => sum + (p.xp || 0), 0);
-    
-    // Calculate current streak
+  useEffect(() => {
+    localStorage.setItem('dsa_daily_goal', dailyGoal.toString());
+  }, [dailyGoal]);
+
+  useEffect(() => {
+    localStorage.setItem('dsa_streak', JSON.stringify(streak));
+  }, [streak]);
+
+  useEffect(() => {
+    localStorage.setItem('dsa_badges', JSON.stringify(userBadges));
+  }, [userBadges]);
+
+  useEffect(() => {
+    localStorage.setItem('dsa_notes', JSON.stringify(notes));
+  }, [notes]);
+
+  // Calculate streak on load
+  useEffect(() => {
+    calculateStreak();
+  }, [dailyProgress]);
+
+  const calculateStreak = () => {
     const today = new Date();
     let currentStreak = 0;
-    const sortedDates = Object.keys(dailyProgress)
-      .sort((a, b) => new Date(b) - new Date(a));
+    let longestStreak = 0;
+    let tempStreak = 0;
 
+    // Sort dates in descending order
+    const sortedDates = Object.keys(dailyProgress).sort((a, b) => new Date(b) - new Date(a));
+
+    // Calculate current streak
     for (let i = 0; i < sortedDates.length; i++) {
       const date = sortedDates[i];
       const daysDiff = differenceInDays(today, parseISO(date));
       
-      if (dailyProgress[date].achieved && daysDiff === i) {
-        currentStreak++;
+      if (dailyProgress[date].achieved) {
+        if (daysDiff === i) {
+          currentStreak++;
+        } else {
+          break;
+        }
       } else {
         break;
       }
     }
 
     // Calculate longest streak
-    let longestStreak = 0;
-    let tempStreak = 0;
     for (const date of sortedDates) {
       if (dailyProgress[date].achieved) {
         tempStreak++;
@@ -138,16 +174,47 @@ export const DSAProvider = ({ children }) => {
       }
     }
 
-    await updateUserProfile({
-      total_xp: totalXP,
-      current_streak: currentStreak,
-      longest_streak: Math.max(longestStreak, userProfile?.longest_streak || 0)
-    });
+    setStreak(prev => ({
+      current: currentStreak,
+      longest: Math.max(longestStreak, prev.longest)
+    }));
+  };
+
+  const updateProblemStatus = (problemId, status) => {
+    setProblems(prev => 
+      prev.map(problem => 
+        problem.id === problemId 
+          ? { ...problem, status }
+          : problem
+      )
+    );
+
+    // Update daily progress if problem is completed
+    if (status === 'Done') {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      setDailyProgress(prev => {
+        const todayProgress = prev[today] || { solved: 0, goal: dailyGoal, achieved: false };
+        const newSolved = todayProgress.solved + 1;
+        const achieved = newSolved >= dailyGoal;
+        
+        return {
+          ...prev,
+          [today]: {
+            solved: newSolved,
+            goal: dailyGoal,
+            achieved
+          }
+        };
+      });
+
+      // Check for badge unlocks
+      checkBadgeUnlocks();
+    }
   };
 
   const checkBadgeUnlocks = () => {
     const solvedProblems = problems.filter(p => p.status === 'Done');
-    const totalXP = solvedProblems.reduce((sum, p) => sum + (p.xp || 0), 0);
+    const totalXP = solvedProblems.reduce((sum, p) => sum + p.xp, 0);
     const easyCount = solvedProblems.filter(p => p.difficulty === 'Easy').length;
     const mediumCount = solvedProblems.filter(p => p.difficulty === 'Medium').length;
     const hardCount = solvedProblems.filter(p => p.difficulty === 'Hard').length;
@@ -184,11 +251,12 @@ export const DSAProvider = ({ children }) => {
           shouldUnlock = hardCount >= 5;
           break;
         case 'topic_master':
+          // Check if any topic is completed
           const topics = [...new Set(problems.map(p => p.topic))];
           shouldUnlock = topics.some(topic => {
             const topicProblems = problems.filter(p => p.topic === topic);
             const topicSolved = topicProblems.filter(p => p.status === 'Done');
-            return topicSolved.length === topicProblems.length && topicProblems.length > 0;
+            return topicSolved.length === topicProblems.length;
           });
           break;
       }
@@ -207,23 +275,9 @@ export const DSAProvider = ({ children }) => {
     }));
   };
 
-  const setDailyGoal = async (goal) => {
-    try {
-      await updateUserProfile({ daily_goal: goal });
-    } catch (error) {
-      console.error('Error updating daily goal:', error);
-    }
-  };
-
   const getTodayProgress = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const defaultProgress = { 
-      solved: 0, 
-      goal: userProfile?.daily_goal || 1, 
-      achieved: false 
-    };
-    
-    return dailyProgress[today] || defaultProgress;
+    return dailyProgress[today] || { solved: 0, goal: dailyGoal, achieved: false };
   };
 
   const getMotivationalMessage = () => {
@@ -241,7 +295,7 @@ export const DSAProvider = ({ children }) => {
 
   const getStats = () => {
     const solvedProblems = problems.filter(p => p.status === 'Done');
-    const totalXP = userProfile?.total_xp || 0;
+    const totalXP = solvedProblems.reduce((sum, p) => sum + p.xp, 0);
     const level = Math.floor(totalXP / 100) + 1;
     const xpToNextLevel = 100 - (totalXP % 100);
     
@@ -251,7 +305,7 @@ export const DSAProvider = ({ children }) => {
       totalXP,
       level,
       xpToNextLevel,
-      progressPercentage: problems.length > 0 ? Math.round((solvedProblems.length / problems.length) * 100) : 0
+      progressPercentage: Math.round((solvedProblems.length / problems.length) * 100)
     };
   };
 
@@ -259,7 +313,8 @@ export const DSAProvider = ({ children }) => {
     const data = {
       problems,
       dailyProgress,
-      userProfile,
+      dailyGoal,
+      streak,
       userBadges,
       notes,
       exportDate: new Date().toISOString()
@@ -274,21 +329,37 @@ export const DSAProvider = ({ children }) => {
     URL.revokeObjectURL(url);
   };
 
+  const importData = (jsonData) => {
+    try {
+      const data = JSON.parse(jsonData);
+      if (data.problems) setProblems(data.problems);
+      if (data.dailyProgress) setDailyProgress(data.dailyProgress);
+      if (data.dailyGoal) setDailyGoal(data.dailyGoal);
+      if (data.streak) setStreak(data.streak);
+      if (data.userBadges) setUserBadges(data.userBadges);
+      if (data.notes) setNotes(data.notes);
+      return true;
+    } catch (error) {
+      console.error('Import failed:', error);
+      return false;
+    }
+  };
+
   const value = {
     problems,
     dailyProgress,
-    dailyGoal: userProfile?.daily_goal || 1,
+    dailyGoal,
     streak,
     userBadges,
     notes,
-    userProfile,
     updateProblemStatus,
     setDailyGoal,
     addNote,
     getTodayProgress,
     getMotivationalMessage,
     getStats,
-    exportData
+    exportData,
+    importData
   };
 
   return (
