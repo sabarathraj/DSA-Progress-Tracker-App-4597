@@ -4,7 +4,18 @@ import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 import { useAuth } from '../context/AuthContext';
 
-const { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiLogIn, FiUserPlus, FiAlertCircle, FiX, FiCode } = FiIcons;
+const {
+  FiMail,
+  FiLock,
+  FiUser,
+  FiEye,
+  FiEyeOff,
+  FiLogIn,
+  FiUserPlus,
+  FiAlertCircle,
+  FiX,
+  FiCode
+} = FiIcons;
 
 const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -17,73 +28,70 @@ const AuthForm = () => {
     confirmPassword: ''
   });
 
-  const { signIn, signUp, authError, setAuthError } = useAuth();
+  const { signIn, signUp, error: authError, setError } = useAuth();
 
-  // Clear auth errors when switching between sign-in and sign-up
   useEffect(() => {
     if (authError) {
-      setAuthError(null);
+      setError(null);
     }
-  }, [isSignUp, setAuthError]);
+  }, [isSignUp, setError]);
 
   const validateForm = () => {
     if (!formData.email || !formData.password) {
-      setAuthError('Email and password are required');
+      setError('Email and password are required');
       return false;
     }
-    
+
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
-      setAuthError('Please enter a valid email address');
+      setError('Please enter a valid email address');
       return false;
     }
-    
+
     if (formData.password.length < 6) {
-      setAuthError('Password must be at least 6 characters long');
+      setError('Password must be at least 6 characters long');
       return false;
     }
-    
+
     if (isSignUp) {
       if (!formData.fullName || formData.fullName.trim().length < 2) {
-        setAuthError('Please enter your full name (at least 2 characters)');
+        setError('Please enter your full name (at least 2 characters)');
         return false;
       }
-      
+
       if (formData.password !== formData.confirmPassword) {
-        setAuthError('Passwords do not match');
+        setError('Passwords do not match');
         return false;
       }
     }
-    
+
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setAuthError(null);
-    
+    setError(null);
+
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       if (isSignUp) {
-        const result = await signUp(formData.email, formData.password, { 
-          fullName: formData.fullName.trim() 
+        await signUp(formData.email, formData.password, {
+          full_name: formData.fullName.trim()
         });
         
-        if (result) {
-          // After successful signup, switch to sign in
-          setIsSignUp(false);
-          setFormData({
-            email: formData.email,
-            password: '',
-            fullName: '',
-            confirmPassword: ''
-          });
-          setAuthError(null);
-        }
+        // After successful signup, switch to sign in
+        setIsSignUp(false);
+        setFormData({
+          email: formData.email,
+          password: '',
+          fullName: '',
+          confirmPassword: ''
+        });
+        setError(null);
       } else {
         await signIn(formData.email, formData.password);
       }
@@ -100,10 +108,10 @@ const AuthForm = () => {
       ...prev,
       [name]: value
     }));
-    
+
     // Clear errors when user starts typing
     if (authError) {
-      setAuthError(null);
+      setError(null);
     }
   };
 
@@ -115,19 +123,20 @@ const AuthForm = () => {
       fullName: '',
       confirmPassword: ''
     });
-    setAuthError(null);
+    setError(null);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <motion.div className="w-full max-w-md"
+      <motion.div
+        className="w-full max-w-md"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* Header */}
         <div className="text-center mb-8">
-          <motion.div 
+          <motion.div
             className="w-20 h-20 bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 300 }}
@@ -143,7 +152,7 @@ const AuthForm = () => {
         </div>
 
         {/* Auth Form */}
-        <motion.div 
+        <motion.div
           className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -163,8 +172,11 @@ const AuthForm = () => {
                     Full Name *
                   </label>
                   <div className="relative">
-                    <SafeIcon icon={FiUser} className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input 
+                    <SafeIcon
+                      icon={FiUser}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                    />
+                    <input
                       type="text"
                       name="fullName"
                       value={formData.fullName}
@@ -185,8 +197,11 @@ const AuthForm = () => {
                 Email Address *
               </label>
               <div className="relative">
-                <SafeIcon icon={FiMail} className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input 
+                <SafeIcon
+                  icon={FiMail}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                />
+                <input
                   type="email"
                   name="email"
                   value={formData.email}
@@ -205,8 +220,11 @@ const AuthForm = () => {
                 Password *
               </label>
               <div className="relative">
-                <SafeIcon icon={FiLock} className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input 
+                <SafeIcon
+                  icon={FiLock}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                />
+                <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
@@ -216,7 +234,7 @@ const AuthForm = () => {
                   required
                   disabled={loading}
                 />
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -245,8 +263,11 @@ const AuthForm = () => {
                     Confirm Password *
                   </label>
                   <div className="relative">
-                    <SafeIcon icon={FiLock} className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input 
+                    <SafeIcon
+                      icon={FiLock}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                    />
+                    <input
                       type={showPassword ? 'text' : 'password'}
                       name="confirmPassword"
                       value={formData.confirmPassword}
@@ -264,7 +285,7 @@ const AuthForm = () => {
             {/* Error Message */}
             <AnimatePresence>
               {authError && (
-                <motion.div 
+                <motion.div
                   className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center space-x-3"
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -274,8 +295,8 @@ const AuthForm = () => {
                   <SafeIcon icon={FiAlertCircle} className="w-5 h-5 text-red-500 flex-shrink-0" />
                   <div className="flex-1">
                     <p className="text-sm text-red-700 dark:text-red-300">{authError}</p>
-                    <button 
-                      onClick={() => setAuthError(null)}
+                    <button
+                      onClick={() => setError(null)}
                       className="absolute top-2 right-2 text-red-400 hover:text-red-600 dark:hover:text-red-300"
                       type="button"
                     >
@@ -287,7 +308,7 @@ const AuthForm = () => {
             </AnimatePresence>
 
             {/* Submit Button */}
-            <motion.button 
+            <motion.button
               type="submit"
               disabled={loading}
               className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center space-x-2"
@@ -309,7 +330,7 @@ const AuthForm = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-              <button 
+              <button
                 onClick={toggleAuthMode}
                 disabled={loading}
                 className="ml-2 text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors disabled:opacity-50"
@@ -321,7 +342,7 @@ const AuthForm = () => {
         </motion.div>
 
         {/* Features Preview */}
-        <motion.div 
+        <motion.div
           className="mt-8 grid grid-cols-3 gap-4 text-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
