@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { format, isToday, parseISO, differenceInDays, startOfDay } from 'date-fns';
+import { useAuth } from './AuthContext';
+import { dbHelpers } from '../lib/supabase';
+import { format, subDays, isToday, parseISO, differenceInDays } from 'date-fns';
+import toast from 'react-hot-toast';
 
 const DSAContext = createContext();
 
@@ -11,149 +14,137 @@ export const useDSA = () => {
   return context;
 };
 
-const initialProblems = [
-  // Arrays
-  { id: 1, title: 'Two Sum', difficulty: 'Easy', topic: 'Arrays', status: 'Not Started', xp: 10, tags: ['Hash Table'], url: 'https://leetcode.com/problems/two-sum/' },
-  { id: 2, title: 'Best Time to Buy and Sell Stock', difficulty: 'Easy', topic: 'Arrays', status: 'Not Started', xp: 10, tags: ['Dynamic Programming'], url: 'https://leetcode.com/problems/best-time-to-buy-and-sell-stock/' },
-  { id: 3, title: 'Contains Duplicate', difficulty: 'Easy', topic: 'Arrays', status: 'Not Started', xp: 10, tags: ['Hash Table'], url: 'https://leetcode.com/problems/contains-duplicate/' },
-  { id: 4, title: 'Product of Array Except Self', difficulty: 'Medium', topic: 'Arrays', status: 'Not Started', xp: 20, tags: ['Prefix Sum'], url: 'https://leetcode.com/problems/product-of-array-except-self/' },
-  { id: 5, title: 'Maximum Subarray', difficulty: 'Medium', topic: 'Arrays', status: 'Not Started', xp: 20, tags: ['Dynamic Programming'], url: 'https://leetcode.com/problems/maximum-subarray/' },
-  
-  // Strings
-  { id: 6, title: 'Valid Anagram', difficulty: 'Easy', topic: 'Strings', status: 'Not Started', xp: 10, tags: ['Hash Table'], url: 'https://leetcode.com/problems/valid-anagram/' },
-  { id: 7, title: 'Valid Parentheses', difficulty: 'Easy', topic: 'Strings', status: 'Not Started', xp: 10, tags: ['Stack'], url: 'https://leetcode.com/problems/valid-parentheses/' },
-  { id: 8, title: 'Longest Substring Without Repeating Characters', difficulty: 'Medium', topic: 'Strings', status: 'Not Started', xp: 20, tags: ['Sliding Window'], url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' },
-  
-  // Linked Lists
-  { id: 9, title: 'Reverse Linked List', difficulty: 'Easy', topic: 'Linked Lists', status: 'Not Started', xp: 10, tags: ['Recursion'], url: 'https://leetcode.com/problems/reverse-linked-list/' },
-  { id: 10, title: 'Merge Two Sorted Lists', difficulty: 'Easy', topic: 'Linked Lists', status: 'Not Started', xp: 10, tags: ['Recursion'], url: 'https://leetcode.com/problems/merge-two-sorted-lists/' },
-  { id: 11, title: 'Linked List Cycle', difficulty: 'Easy', topic: 'Linked Lists', status: 'Not Started', xp: 10, tags: ['Two Pointers'], url: 'https://leetcode.com/problems/linked-list-cycle/' },
-  
-  // Trees
-  { id: 12, title: 'Maximum Depth of Binary Tree', difficulty: 'Easy', topic: 'Trees', status: 'Not Started', xp: 10, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/maximum-depth-of-binary-tree/' },
-  { id: 13, title: 'Same Tree', difficulty: 'Easy', topic: 'Trees', status: 'Not Started', xp: 10, tags: ['DFS'], url: 'https://leetcode.com/problems/same-tree/' },
-  { id: 14, title: 'Binary Tree Inorder Traversal', difficulty: 'Easy', topic: 'Trees', status: 'Not Started', xp: 10, tags: ['DFS'], url: 'https://leetcode.com/problems/binary-tree-inorder-traversal/' },
-  { id: 15, title: 'Validate Binary Search Tree', difficulty: 'Medium', topic: 'Trees', status: 'Not Started', xp: 20, tags: ['DFS'], url: 'https://leetcode.com/problems/validate-binary-search-tree/' },
-  
-  // Dynamic Programming
-  { id: 16, title: 'Climbing Stairs', difficulty: 'Easy', topic: 'Dynamic Programming', status: 'Not Started', xp: 10, tags: ['Math'], url: 'https://leetcode.com/problems/climbing-stairs/' },
-  { id: 17, title: 'House Robber', difficulty: 'Medium', topic: 'Dynamic Programming', status: 'Not Started', xp: 20, tags: ['Array'], url: 'https://leetcode.com/problems/house-robber/' },
-  { id: 18, title: 'Coin Change', difficulty: 'Medium', topic: 'Dynamic Programming', status: 'Not Started', xp: 20, tags: ['BFS'], url: 'https://leetcode.com/problems/coin-change/' },
-  
-  // Graphs
-  { id: 19, title: 'Number of Islands', difficulty: 'Medium', topic: 'Graphs', status: 'Not Started', xp: 20, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/number-of-islands/' },
-  { id: 20, title: 'Clone Graph', difficulty: 'Medium', topic: 'Graphs', status: 'Not Started', xp: 20, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/clone-graph/' },
-  
-  // Hard Problems
-  { id: 21, title: 'Median of Two Sorted Arrays', difficulty: 'Hard', topic: 'Arrays', status: 'Not Started', xp: 30, tags: ['Binary Search'], url: 'https://leetcode.com/problems/median-of-two-sorted-arrays/' },
-  { id: 22, title: 'Trapping Rain Water', difficulty: 'Hard', topic: 'Arrays', status: 'Not Started', xp: 30, tags: ['Two Pointers', 'Stack'], url: 'https://leetcode.com/problems/trapping-rain-water/' },
-  { id: 23, title: 'Serialize and Deserialize Binary Tree', difficulty: 'Hard', topic: 'Trees', status: 'Not Started', xp: 30, tags: ['DFS', 'BFS'], url: 'https://leetcode.com/problems/serialize-and-deserialize-binary-tree/' },
-  { id: 24, title: 'Word Ladder', difficulty: 'Hard', topic: 'Graphs', status: 'Not Started', xp: 30, tags: ['BFS'], url: 'https://leetcode.com/problems/word-ladder/' },
-  { id: 25, title: 'Edit Distance', difficulty: 'Hard', topic: 'Dynamic Programming', status: 'Not Started', xp: 30, tags: ['String'], url: 'https://leetcode.com/problems/edit-distance/' },
-];
-
-const motivationalQuotes = [
-  "Every expert was once a beginner. Keep coding! 💪",
-  "The only way to do great work is to love what you do. 🚀",
-  "Success is not final, failure is not fatal: it is the courage to continue that counts. 🌟",
-  "Don't watch the clock; do what it does. Keep going. ⏰",
-  "The future belongs to those who believe in the beauty of their dreams. ✨",
-  "It always seems impossible until it's done. 🎯",
-  "Your limitation—it's only your imagination. 🧠",
-  "Push yourself, because no one else is going to do it for you. 🔥",
-  "Great things never come from comfort zones. 🌈",
-  "Dream it. Wish it. Do it. 💫"
-];
-
-const badges = [
-  { id: 'first_problem', name: 'First Steps', description: 'Solved your first problem!', icon: '🎯', unlocked: false },
-  { id: 'streak_7', name: 'Week Warrior', description: '7-day streak achieved!', icon: '🔥', unlocked: false },
-  { id: 'streak_30', name: 'Monthly Master', description: '30-day streak achieved!', icon: '🏆', unlocked: false },
-  { id: 'xp_100', name: '100 XP Club', description: 'Earned 100 XP!', icon: '⭐', unlocked: false },
-  { id: 'xp_500', name: '500 XP Hero', description: 'Earned 500 XP!', icon: '💎', unlocked: false },
-  { id: 'xp_1000', name: '1000 XP Legend', description: 'Earned 1000 XP!', icon: '👑', unlocked: false },
-  { id: 'easy_10', name: 'Easy Explorer', description: 'Solved 10 easy problems!', icon: '🌱', unlocked: false },
-  { id: 'medium_10', name: 'Medium Challenger', description: 'Solved 10 medium problems!', icon: '⚡', unlocked: false },
-  { id: 'hard_5', name: 'Hard Conqueror', description: 'Solved 5 hard problems!', icon: '🗡️', unlocked: false },
-  { id: 'topic_master', name: 'Topic Master', description: 'Completed all problems in a topic!', icon: '🎓', unlocked: false },
+const badgeDefinitions = [
+  { type: 'first_problem', name: 'First Steps', description: 'Solved your first problem!', icon: '🎯' },
+  { type: 'streak_7', name: 'Week Warrior', description: '7-day streak achieved!', icon: '🔥' },
+  { type: 'streak_30', name: 'Monthly Master', description: '30-day streak achieved!', icon: '🏆' },
+  { type: 'xp_100', name: '100 XP Club', description: 'Earned 100 XP!', icon: '⭐' },
+  { type: 'xp_500', name: '500 XP Hero', description: 'Earned 500 XP!', icon: '💎' },
+  { type: 'xp_1000', name: '1000 XP Legend', description: 'Earned 1000 XP!', icon: '👑' },
+  { type: 'easy_10', name: 'Easy Explorer', description: 'Solved 10 easy problems!', icon: '🌱' },
+  { type: 'medium_10', name: 'Medium Challenger', description: 'Solved 10 medium problems!', icon: '⚡' },
+  { type: 'hard_5', name: 'Hard Conqueror', description: 'Solved 5 hard problems!', icon: '🗡️' },
+  { type: 'topic_master', name: 'Topic Master', description: 'Completed all problems in a topic!', icon: '🎓' },
 ];
 
 export const DSAProvider = ({ children }) => {
-  const [problems, setProblems] = useState(() => {
-    const saved = localStorage.getItem('dsa_problems');
-    return saved ? JSON.parse(saved) : initialProblems;
-  });
+  const { user, userProfile } = useAuth();
+  const [problems, setProblems] = useState([]);
+  const [userProblems, setUserProblems] = useState([]);
+  const [dailyProgress, setDailyProgress] = useState({});
+  const [userBadges, setUserBadges] = useState([]);
+  const [codeSnippets, setCodeSnippets] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [streak, setStreak] = useState({ current: 0, longest: 0 });
 
-  const [dailyProgress, setDailyProgress] = useState(() => {
-    const saved = localStorage.getItem('dsa_daily_progress');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [dailyGoal, setDailyGoal] = useState(() => {
-    const saved = localStorage.getItem('dsa_daily_goal');
-    return saved ? parseInt(saved) : 1;
-  });
-
-  const [streak, setStreak] = useState(() => {
-    const saved = localStorage.getItem('dsa_streak');
-    return saved ? JSON.parse(saved) : { current: 0, longest: 0 };
-  });
-
-  const [userBadges, setUserBadges] = useState(() => {
-    const saved = localStorage.getItem('dsa_badges');
-    return saved ? JSON.parse(saved) : badges;
-  });
-
-  const [notes, setNotes] = useState(() => {
-    const saved = localStorage.getItem('dsa_notes');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  // Save to localStorage whenever state changes
+  // Load data when user changes
   useEffect(() => {
-    localStorage.setItem('dsa_problems', JSON.stringify(problems));
-  }, [problems]);
+    if (user) {
+      loadAllData();
+    } else {
+      resetData();
+    }
+  }, [user]);
 
-  useEffect(() => {
-    localStorage.setItem('dsa_daily_progress', JSON.stringify(dailyProgress));
-  }, [dailyProgress]);
+  const resetData = () => {
+    setProblems([]);
+    setUserProblems([]);
+    setDailyProgress({});
+    setUserBadges([]);
+    setCodeSnippets({});
+    setStreak({ current: 0, longest: 0 });
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    localStorage.setItem('dsa_daily_goal', dailyGoal.toString());
-  }, [dailyGoal]);
+  const loadAllData = async () => {
+    if (!user) return;
 
-  useEffect(() => {
-    localStorage.setItem('dsa_streak', JSON.stringify(streak));
-  }, [streak]);
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadProblems(),
+        loadUserProblems(),
+        loadDailyProgress(),
+        loadUserBadges()
+      ]);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem('dsa_badges', JSON.stringify(userBadges));
-  }, [userBadges]);
+  const loadProblems = async () => {
+    try {
+      const data = await dbHelpers.getProblems();
+      setProblems(data);
+    } catch (error) {
+      console.error('Error loading problems:', error);
+      throw error;
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem('dsa_notes', JSON.stringify(notes));
-  }, [notes]);
+  const loadUserProblems = async () => {
+    if (!user) return;
 
-  // Calculate streak on load
-  useEffect(() => {
-    calculateStreak();
-  }, [dailyProgress]);
+    try {
+      const data = await dbHelpers.getUserProblems(user.id);
+      setUserProblems(data);
+    } catch (error) {
+      console.error('Error loading user problems:', error);
+      throw error;
+    }
+  };
 
-  const calculateStreak = () => {
+  const loadDailyProgress = async () => {
+    if (!user) return;
+
+    try {
+      const startDate = format(subDays(new Date(), 90), 'yyyy-MM-dd');
+      const endDate = format(new Date(), 'yyyy-MM-dd');
+      const data = await dbHelpers.getDailyProgress(user.id, startDate, endDate);
+      
+      const progressMap = {};
+      data.forEach(progress => {
+        progressMap[progress.date] = progress;
+      });
+      
+      setDailyProgress(progressMap);
+      calculateStreak(progressMap);
+    } catch (error) {
+      console.error('Error loading daily progress:', error);
+      throw error;
+    }
+  };
+
+  const loadUserBadges = async () => {
+    if (!user) return;
+
+    try {
+      const data = await dbHelpers.getUserBadges(user.id);
+      setUserBadges(data);
+    } catch (error) {
+      console.error('Error loading user badges:', error);
+      throw error;
+    }
+  };
+
+  const calculateStreak = (progressData) => {
     const today = new Date();
     let currentStreak = 0;
     let longestStreak = 0;
     let tempStreak = 0;
 
     // Sort dates in descending order
-    const sortedDates = Object.keys(dailyProgress).sort((a, b) => new Date(b) - new Date(a));
+    const sortedDates = Object.keys(progressData).sort((a, b) => new Date(b) - new Date(a));
 
     // Calculate current streak
     for (let i = 0; i < sortedDates.length; i++) {
       const date = sortedDates[i];
       const daysDiff = differenceInDays(today, parseISO(date));
       
-      if (dailyProgress[date].achieved) {
+      if (progressData[date].goal_achieved) {
         if (daysDiff === i) {
           currentStreak++;
         } else {
@@ -166,7 +157,7 @@ export const DSAProvider = ({ children }) => {
 
     // Calculate longest streak
     for (const date of sortedDates) {
-      if (dailyProgress[date].achieved) {
+      if (progressData[date].goal_achieved) {
         tempStreak++;
         longestStreak = Math.max(longestStreak, tempStreak);
       } else {
@@ -174,55 +165,82 @@ export const DSAProvider = ({ children }) => {
       }
     }
 
-    setStreak(prev => ({
-      current: currentStreak,
-      longest: Math.max(longestStreak, prev.longest)
-    }));
+    setStreak({ current: currentStreak, longest: longestStreak });
   };
 
-  const updateProblemStatus = (problemId, status) => {
-    setProblems(prev => 
-      prev.map(problem => 
-        problem.id === problemId 
-          ? { ...problem, status }
-          : problem
-      )
-    );
+  const updateProblemStatus = async (problemId, status, additionalData = {}) => {
+    if (!user) return;
 
-    // Update daily progress if problem is completed
-    if (status === 'Done') {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      setDailyProgress(prev => {
-        const todayProgress = prev[today] || { solved: 0, goal: dailyGoal, achieved: false };
-        const newSolved = todayProgress.solved + 1;
-        const achieved = newSolved >= dailyGoal;
-        
-        return {
-          ...prev,
-          [today]: {
-            solved: newSolved,
-            goal: dailyGoal,
-            achieved
-          }
-        };
-      });
+    try {
+      await dbHelpers.updateUserProblemStatus(user.id, problemId, status, additionalData);
+      await loadUserProblems();
 
-      // Check for badge unlocks
-      checkBadgeUnlocks();
+      // Update daily progress if problem is completed
+      if (status === 'Done') {
+        await updateTodayProgress();
+        await checkBadgeUnlocks();
+      }
+
+      toast.success(`Problem marked as ${status.toLowerCase()}`);
+    } catch (error) {
+      console.error('Error updating problem status:', error);
+      toast.error('Failed to update problem status');
     }
   };
 
-  const checkBadgeUnlocks = () => {
-    const solvedProblems = problems.filter(p => p.status === 'Done');
-    const totalXP = solvedProblems.reduce((sum, p) => sum + p.xp, 0);
+  const updateTodayProgress = async () => {
+    if (!user || !userProfile) return;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const solvedToday = userProblems.filter(p => 
+      p.status === 'Done' && 
+      p.completed_at && 
+      format(parseISO(p.completed_at), 'yyyy-MM-dd') === today
+    ).length;
+
+    const goalAchieved = solvedToday >= userProfile.daily_goal;
+    const xpEarned = userProblems
+      .filter(p => 
+        p.status === 'Done' && 
+        p.completed_at && 
+        format(parseISO(p.completed_at), 'yyyy-MM-dd') === today
+      )
+      .reduce((sum, p) => sum + (p.xp_reward || 0), 0);
+
+    try {
+      await dbHelpers.updateDailyProgress(user.id, today, {
+        problems_solved: solvedToday,
+        daily_goal: userProfile.daily_goal,
+        goal_achieved: goalAchieved,
+        xp_earned: xpEarned,
+        streak_count: goalAchieved ? streak.current + 1 : 0
+      });
+
+      await loadDailyProgress();
+    } catch (error) {
+      console.error('Error updating daily progress:', error);
+    }
+  };
+
+  const checkBadgeUnlocks = async () => {
+    if (!user) return;
+
+    const solvedProblems = userProblems.filter(p => p.status === 'Done');
+    const totalXP = solvedProblems.reduce((sum, p) => sum + (p.xp_reward || 0), 0);
     const easyCount = solvedProblems.filter(p => p.difficulty === 'Easy').length;
     const mediumCount = solvedProblems.filter(p => p.difficulty === 'Medium').length;
     const hardCount = solvedProblems.filter(p => p.difficulty === 'Hard').length;
 
-    setUserBadges(prev => prev.map(badge => {
+    const badgesToUnlock = [];
+
+    // Check each badge condition
+    for (const badge of badgeDefinitions) {
+      const alreadyUnlocked = userBadges.some(ub => ub.badge_type === badge.type);
+      if (alreadyUnlocked) continue;
+
       let shouldUnlock = false;
 
-      switch (badge.id) {
+      switch (badge.type) {
         case 'first_problem':
           shouldUnlock = solvedProblems.length >= 1;
           break;
@@ -255,33 +273,112 @@ export const DSAProvider = ({ children }) => {
           const topics = [...new Set(problems.map(p => p.topic))];
           shouldUnlock = topics.some(topic => {
             const topicProblems = problems.filter(p => p.topic === topic);
-            const topicSolved = topicProblems.filter(p => p.status === 'Done');
-            return topicSolved.length === topicProblems.length;
+            const topicSolved = solvedProblems.filter(p => p.topic === topic);
+            return topicSolved.length === topicProblems.length && topicProblems.length > 0;
           });
           break;
       }
 
-      return {
-        ...badge,
-        unlocked: badge.unlocked || shouldUnlock
-      };
-    }));
+      if (shouldUnlock) {
+        badgesToUnlock.push({
+          badge_type: badge.type,
+          badge_name: badge.name,
+          badge_description: badge.description,
+          badge_icon: badge.icon
+        });
+      }
+    }
+
+    // Unlock badges
+    for (const badge of badgesToUnlock) {
+      try {
+        await dbHelpers.unlockBadge(user.id, badge);
+        toast.success(`🎉 Badge unlocked: ${badge.badge_name}!`);
+      } catch (error) {
+        console.error('Error unlocking badge:', error);
+      }
+    }
+
+    if (badgesToUnlock.length > 0) {
+      await loadUserBadges();
+    }
   };
 
-  const addNote = (problemId, note) => {
-    setNotes(prev => ({
-      ...prev,
-      [problemId]: note
-    }));
+  const saveCodeSnippet = async (problemId, codeData) => {
+    if (!user) return;
+
+    try {
+      const snippet = await dbHelpers.saveCodeSnippet(user.id, problemId, codeData);
+      
+      // Update local state
+      setCodeSnippets(prev => ({
+        ...prev,
+        [problemId]: [...(prev[problemId] || []), snippet]
+      }));
+
+      toast.success('Code snippet saved!');
+      return snippet;
+    } catch (error) {
+      console.error('Error saving code snippet:', error);
+      toast.error('Failed to save code snippet');
+      throw error;
+    }
+  };
+
+  const loadCodeSnippets = async (problemId) => {
+    if (!user) return [];
+
+    try {
+      const snippets = await dbHelpers.getCodeSnippets(user.id, problemId);
+      setCodeSnippets(prev => ({
+        ...prev,
+        [problemId]: snippets
+      }));
+      return snippets;
+    } catch (error) {
+      console.error('Error loading code snippets:', error);
+      return [];
+    }
   };
 
   const getTodayProgress = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    return dailyProgress[today] || { solved: 0, goal: dailyGoal, achieved: false };
+    const progress = dailyProgress[today];
+    
+    return {
+      solved: progress?.problems_solved || 0,
+      goal: userProfile?.daily_goal || 1,
+      achieved: progress?.goal_achieved || false,
+      xpEarned: progress?.xp_earned || 0
+    };
+  };
+
+  const getStats = () => {
+    const solvedProblems = userProblems.filter(p => p.status === 'Done');
+    const totalXP = solvedProblems.reduce((sum, p) => sum + (p.xp_reward || 0), 0);
+    const level = Math.floor(totalXP / 100) + 1;
+    const xpToNextLevel = 100 - (totalXP % 100);
+    
+    return {
+      totalProblems: problems.length,
+      solvedProblems: solvedProblems.length,
+      totalXP,
+      level,
+      xpToNextLevel,
+      progressPercentage: problems.length > 0 ? Math.round((solvedProblems.length / problems.length) * 100) : 0
+    };
   };
 
   const getMotivationalMessage = () => {
     const todayProgress = getTodayProgress();
+    const motivationalQuotes = [
+      "Every expert was once a beginner. Keep coding! 💪",
+      "The only way to do great work is to love what you do. 🚀",
+      "Success is not final, failure is not fatal: it is the courage to continue that counts. 🌟",
+      "Don't watch the clock; do what it does. Keep going. ⏰",
+      "The future belongs to those who believe in the beauty of their dreams. ✨"
+    ];
+    
     const randomQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
     
     if (todayProgress.achieved) {
@@ -293,73 +390,21 @@ export const DSAProvider = ({ children }) => {
     }
   };
 
-  const getStats = () => {
-    const solvedProblems = problems.filter(p => p.status === 'Done');
-    const totalXP = solvedProblems.reduce((sum, p) => sum + p.xp, 0);
-    const level = Math.floor(totalXP / 100) + 1;
-    const xpToNextLevel = 100 - (totalXP % 100);
-    
-    return {
-      totalProblems: problems.length,
-      solvedProblems: solvedProblems.length,
-      totalXP,
-      level,
-      xpToNextLevel,
-      progressPercentage: Math.round((solvedProblems.length / problems.length) * 100)
-    };
-  };
-
-  const exportData = () => {
-    const data = {
-      problems,
-      dailyProgress,
-      dailyGoal,
-      streak,
-      userBadges,
-      notes,
-      exportDate: new Date().toISOString()
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dsa-tracker-backup-${format(new Date(), 'yyyy-MM-dd')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const importData = (jsonData) => {
-    try {
-      const data = JSON.parse(jsonData);
-      if (data.problems) setProblems(data.problems);
-      if (data.dailyProgress) setDailyProgress(data.dailyProgress);
-      if (data.dailyGoal) setDailyGoal(data.dailyGoal);
-      if (data.streak) setStreak(data.streak);
-      if (data.userBadges) setUserBadges(data.userBadges);
-      if (data.notes) setNotes(data.notes);
-      return true;
-    } catch (error) {
-      console.error('Import failed:', error);
-      return false;
-    }
-  };
-
   const value = {
     problems,
+    userProblems,
     dailyProgress,
-    dailyGoal,
-    streak,
     userBadges,
-    notes,
+    codeSnippets,
+    streak,
+    loading,
     updateProblemStatus,
-    setDailyGoal,
-    addNote,
+    saveCodeSnippet,
+    loadCodeSnippets,
     getTodayProgress,
-    getMotivationalMessage,
     getStats,
-    exportData,
-    importData
+    getMotivationalMessage,
+    loadAllData
   };
 
   return (

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import Problems from './pages/Problems';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import { AuthProvider } from './context/AuthContext';
 import { DSAProvider } from './context/DSAContext';
 import { ThemeProvider } from './context/ThemeContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import LoadingSpinner from './components/common/LoadingSpinner';
 import './App.css';
 
 function App() {
@@ -23,39 +27,69 @@ function App() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-2xl font-bold text-primary-600 dark:text-primary-400">DSA Tracker</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Loading your progress...</p>
-        </motion.div>
-      </div>
-    );
+    return <LoadingSpinner message="Initializing DSA Tracker..." />;
   }
 
   return (
     <ThemeProvider>
-      <DSAProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-            <Navbar />
-            <main className="pt-16">
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/problems" element={<Problems />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </main>
-          </div>
-        </Router>
-      </DSAProvider>
+      <AuthProvider>
+        <DSAProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+              <Navbar />
+              <main className="pt-16">
+                <Routes>
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/problems" element={
+                    <ProtectedRoute>
+                      <Problems />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/analytics" element={
+                    <ProtectedRoute>
+                      <Analytics />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  } />
+                </Routes>
+              </main>
+              
+              {/* Toast Notifications */}
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: 'var(--toast-bg)',
+                    color: 'var(--toast-color)',
+                    border: '1px solid var(--toast-border)',
+                  },
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#ffffff',
+                    },
+                  },
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#ffffff',
+                    },
+                  },
+                }}
+              />
+            </div>
+          </Router>
+        </DSAProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

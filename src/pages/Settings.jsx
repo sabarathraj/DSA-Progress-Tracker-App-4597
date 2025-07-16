@@ -2,54 +2,31 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
-import { useDSA } from '../context/DSAContext';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import toast from 'react-hot-toast';
 
-const { FiSettings, FiSun, FiMoon, FiTarget, FiDownload, FiUpload, FiTrash2, FiSave, FiRefreshCw } = FiIcons;
+const { FiSettings, FiSun, FiMoon, FiTarget, FiUser, FiSave, FiLogOut } = FiIcons;
 
 const Settings = () => {
-  const { dailyGoal, setDailyGoal, exportData, importData } = useDSA();
+  const { user, userProfile, updateProfile, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const [newGoal, setNewGoal] = useState(dailyGoal);
-  const [importFile, setImportFile] = useState(null);
-  const [importStatus, setImportStatus] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState({
+    full_name: userProfile?.full_name || '',
+    daily_goal: userProfile?.daily_goal || 1
+  });
 
-  const handleGoalSave = () => {
-    if (newGoal > 0 && newGoal <= 20) {
-      setDailyGoal(newGoal);
-      setImportStatus('Daily goal updated successfully!');
-      setTimeout(() => setImportStatus(''), 3000);
+  const handleSaveProfile = async () => {
+    const result = await updateProfile(profileData);
+    if (result.success) {
+      setIsEditing(false);
     }
   };
 
-  const handleExport = () => {
-    exportData();
-    setImportStatus('Data exported successfully!');
-    setTimeout(() => setImportStatus(''), 3000);
-  };
-
-  const handleImport = async () => {
-    if (!importFile) return;
-
-    try {
-      const text = await importFile.text();
-      const success = importData(text);
-      if (success) {
-        setImportStatus('Data imported successfully!');
-        setImportFile(null);
-      } else {
-        setImportStatus('Failed to import data. Please check the file format.');
-      }
-    } catch (error) {
-      setImportStatus('Error reading file. Please try again.');
-    }
-    setTimeout(() => setImportStatus(''), 3000);
-  };
-
-  const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
-      localStorage.clear();
-      window.location.reload();
+  const handleSignOut = async () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      await signOut();
     }
   };
 
@@ -98,22 +75,6 @@ const Settings = () => {
           </div>
         </motion.div>
 
-        {/* Status Message */}
-        {importStatus && (
-          <motion.div
-            className={`mb-6 p-4 rounded-lg ${
-              importStatus.includes('success') 
-                ? 'bg-success-100 dark:bg-success-900 text-success-700 dark:text-success-300 border border-success-200 dark:border-success-800'
-                : 'bg-danger-100 dark:bg-danger-900 text-danger-700 dark:text-danger-300 border border-danger-200 dark:border-danger-800'
-            }`}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-          >
-            {importStatus}
-          </motion.div>
-        )}
-
         {/* Settings Grid */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -121,6 +82,85 @@ const Settings = () => {
           initial="hidden"
           animate="visible"
         >
+          {/* Profile Settings */}
+          <motion.div
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+            variants={itemVariants}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Profile
+              </h3>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <SafeIcon icon={FiUser} className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Full Name
+                </label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={profileData.full_name}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, full_name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{userProfile?.full_name || 'Not set'}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Email
+                </label>
+                <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Daily Goal
+                </label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={profileData.daily_goal}
+                    onChange={(e) => setProfileData(prev => ({ ...prev, daily_goal: parseInt(e.target.value) || 1 }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <p className="text-gray-900 dark:text-white">{userProfile?.daily_goal || 1} problems per day</p>
+                )}
+              </div>
+
+              {isEditing && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleSaveProfile}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-1"
+                  >
+                    <SafeIcon icon={FiSave} className="w-4 h-4" />
+                    <span>Save</span>
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
           {/* Appearance Settings */}
           <motion.div
             className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
@@ -153,115 +193,57 @@ const Settings = () => {
             </div>
           </motion.div>
 
-          {/* Goal Settings */}
+          {/* Account Stats */}
           <motion.div
             className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
             variants={itemVariants}
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Daily Goal
+              Account Stats
             </h3>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <SafeIcon icon={FiTarget} className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Problems per day
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Current Level</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {userProfile?.level || 1}
                 </span>
               </div>
-              <div className="flex items-center space-x-3">
-                <input
-                  type="number"
-                  value={newGoal}
-                  onChange={(e) => setNewGoal(parseInt(e.target.value) || 1)}
-                  min="1"
-                  max="20"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <button
-                  onClick={handleGoalSave}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-                >
-                  <SafeIcon icon={FiSave} className="w-4 h-4" />
-                  <span>Save</span>
-                </button>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total XP</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {userProfile?.total_xp || 0}
+                </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Set a realistic daily goal to maintain consistency
-              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Current Streak</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {userProfile?.current_streak || 0} days
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Longest Streak</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {userProfile?.longest_streak || 0} days
+                </span>
+              </div>
             </div>
           </motion.div>
 
-          {/* Data Export */}
+          {/* Account Actions */}
           <motion.div
             className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
             variants={itemVariants}
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Data Export
+              Account Actions
             </h3>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Export your progress data for backup or sharing
-              </p>
+            <div className="space-y-3">
               <button
-                onClick={handleExport}
-                className="w-full px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 transition-colors flex items-center justify-center space-x-2"
+                onClick={handleSignOut}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
               >
-                <SafeIcon icon={FiDownload} className="w-4 h-4" />
-                <span>Export Data</span>
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Data Import */}
-          <motion.div
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
-            variants={itemVariants}
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Data Import
-            </h3>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Import previously exported data
-              </p>
-              <div className="space-y-3">
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={(e) => setImportFile(e.target.files[0])}
-                  className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900 dark:file:text-primary-300"
-                />
-                <button
-                  onClick={handleImport}
-                  disabled={!importFile}
-                  className="w-full px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
-                >
-                  <SafeIcon icon={FiUpload} className="w-4 h-4" />
-                  <span>Import Data</span>
-                </button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Reset Data */}
-          <motion.div
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 md:col-span-2"
-            variants={itemVariants}
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Reset Data
-            </h3>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                This will permanently delete all your progress, settings, and data. This action cannot be undone.
-              </p>
-              <button
-                onClick={handleReset}
-                className="px-4 py-2 bg-danger-600 text-white rounded-lg hover:bg-danger-700 transition-colors flex items-center space-x-2"
-              >
-                <SafeIcon icon={FiTrash2} className="w-4 h-4" />
-                <span>Reset All Data</span>
+                <SafeIcon icon={FiLogOut} className="w-4 h-4" />
+                <span>Sign Out</span>
               </button>
             </div>
           </motion.div>
@@ -279,8 +261,8 @@ const Settings = () => {
           </h3>
           <ul className="space-y-2 text-sm text-primary-600 dark:text-primary-400">
             <li>• Set a realistic daily goal that you can consistently achieve</li>
-            <li>• Export your data regularly to avoid losing progress</li>
-            <li>• Use the notes feature to track your learning insights</li>
+            <li>• Use the code editor to save your solutions for future reference</li>
+            <li>• Take detailed notes about your approach and complexity analysis</li>
             <li>• Focus on understanding concepts rather than just solving problems</li>
             <li>• Celebrate small wins and maintain your streak!</li>
           </ul>
