@@ -5,10 +5,14 @@ import SafeIcon from '../common/SafeIcon';
 import { useDSA } from '../context/DSAContext';
 import ProblemModal from './problems/ProblemModal';
 
-const { FiExternalLink, FiCheck, FiClock, FiPlay, FiZap, FiCode } = FiIcons;
+const { 
+  FiExternalLink, FiCheck, FiClock, FiPlay, FiZap, FiCode, 
+  FiBookmark, FiStar, FiTrendingDown, FiRefreshCw, FiHeart,
+  FiTarget, FiAward
+} = FiIcons;
 
-const ProblemCard = ({ problem }) => {
-  const { updateProblemStatus } = useDSA();
+const ProblemCard = ({ problem, showRevisionInfo = false }) => {
+  const { updateProblemStatus, toggleBookmark, markForRevision, updateConfidenceLevel } = useDSA();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const getDifficultyColor = (difficulty) => {
@@ -24,6 +28,7 @@ const ProblemCard = ({ problem }) => {
     switch (status) {
       case 'Done': return 'text-success-600 dark:text-success-400 bg-success-100 dark:bg-success-900';
       case 'In Progress': return 'text-warning-600 dark:text-warning-400 bg-warning-100 dark:bg-warning-900';
+      case 'Needs Revision': return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900';
       default: return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-900';
     }
   };
@@ -32,12 +37,35 @@ const ProblemCard = ({ problem }) => {
     switch (status) {
       case 'Done': return FiCheck;
       case 'In Progress': return FiPlay;
+      case 'Needs Revision': return FiRefreshCw;
       default: return FiClock;
     }
   };
 
+  const getConfidenceColor = (level) => {
+    if (level <= 2) return 'text-red-600 dark:text-red-400';
+    if (level <= 3) return 'text-orange-600 dark:text-orange-400';
+    if (level <= 4) return 'text-blue-600 dark:text-blue-400';
+    return 'text-green-600 dark:text-green-400';
+  };
+
   const handleStatusChange = (newStatus) => {
     updateProblemStatus(problem.id, newStatus);
+  };
+
+  const handleBookmarkToggle = (e) => {
+    e.stopPropagation();
+    toggleBookmark(problem.id, !problem.is_bookmarked);
+  };
+
+  const handleRevisionMark = (e) => {
+    e.stopPropagation();
+    markForRevision(problem.id, 'Marked for revision from problem card');
+  };
+
+  const handleConfidenceChange = (e, level) => {
+    e.stopPropagation();
+    updateConfidenceLevel(problem.id, level);
   };
 
   return (
@@ -51,9 +79,18 @@ const ProblemCard = ({ problem }) => {
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-              {problem.title}
-            </h3>
+            <div className="flex items-center space-x-2 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                {problem.title}
+              </h3>
+              {problem.is_bookmarked && (
+                <SafeIcon icon={FiBookmark} className="w-4 h-4 text-yellow-500" />
+              )}
+              {problem.is_interview_ready && (
+                <SafeIcon icon={FiStar} className="w-4 h-4 text-green-500" />
+              )}
+            </div>
+            
             <div className="flex items-center space-x-2 mb-2">
               <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getDifficultyColor(problem.difficulty)}`}>
                 {problem.difficulty}
@@ -67,7 +104,19 @@ const ProblemCard = ({ problem }) => {
               </span>
             </div>
           </div>
+          
           <div className="flex items-center space-x-2">
+            <button
+              onClick={handleBookmarkToggle}
+              className={`p-2 rounded-lg transition-colors ${
+                problem.is_bookmarked
+                  ? 'text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900'
+                  : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <SafeIcon icon={FiBookmark} className="w-4 h-4" />
+            </button>
+            
             {problem.external_url && (
               <a
                 href={problem.external_url}
@@ -79,6 +128,7 @@ const ProblemCard = ({ problem }) => {
                 <SafeIcon icon={FiExternalLink} className="w-4 h-4" />
               </a>
             )}
+            
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -108,14 +158,22 @@ const ProblemCard = ({ problem }) => {
               {tag}
             </span>
           ))}
-          {problem.tags?.length > 3 && (
+          {problem.company_tags?.slice(0, 2).map((tag) => (
+            <span
+              key={tag}
+              className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-md"
+            >
+              {tag}
+            </span>
+          ))}
+          {(problem.tags?.length > 3 || problem.company_tags?.length > 2) && (
             <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md">
-              +{problem.tags.length - 3} more
+              +{(problem.tags?.length || 0) + (problem.company_tags?.length || 0) - 5} more
             </span>
           )}
         </div>
 
-        {/* Status and Notes Preview */}
+        {/* Status and Actions */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -135,15 +193,93 @@ const ProblemCard = ({ problem }) => {
               <option value="Not Started">Not Started</option>
               <option value="In Progress">In Progress</option>
               <option value="Done">Done</option>
+              <option value="Needs Revision">Needs Revision</option>
             </select>
           </div>
 
+          {/* Revision Info */}
+          {showRevisionInfo && (
+            <div className="space-y-2">
+              {/* Confidence Level */}
+              {problem.confidence_level && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Confidence:</span>
+                  <div className="flex items-center space-x-1">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <button
+                        key={level}
+                        onClick={(e) => handleConfidenceChange(e, level)}
+                        className={`w-4 h-4 rounded-full border-2 transition-colors ${
+                          level <= (problem.confidence_level || 0)
+                            ? `${getConfidenceColor(problem.confidence_level)} border-current`
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      >
+                        <SafeIcon 
+                          icon={level <= (problem.confidence_level || 0) ? FiHeart : FiHeart} 
+                          className="w-full h-full" 
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Revision Count */}
+              {problem.revision_count > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Revisions:</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {problem.revision_count}
+                  </span>
+                </div>
+              )}
+
+              {/* Last Revised */}
+              {problem.last_revised_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Last Revised:</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {new Date(problem.last_revised_at).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="flex items-center space-x-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            {problem.status === 'Done' && (
+              <button
+                onClick={handleRevisionMark}
+                className="flex items-center space-x-1 px-2 py-1 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 rounded-md hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors"
+              >
+                <SafeIcon icon={FiRefreshCw} className="w-3 h-3" />
+                <span>Mark for Revision</span>
+              </button>
+            )}
+            
+            {problem.confidence_level >= 4 && problem.status === 'Done' && (
+              <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-md">
+                <SafeIcon icon={FiTarget} className="w-3 h-3" />
+                <span>High Confidence</span>
+              </div>
+            )}
+            
+            {problem.is_interview_ready && (
+              <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 rounded-md">
+                <SafeIcon icon={FiAward} className="w-3 h-3" />
+                <span>Interview Ready</span>
+              </div>
+            )}
+          </div>
+
           {/* Notes Preview */}
-          {(problem.personal_notes || problem.approach_notes) && (
+          {(problem.personal_notes || problem.approach_notes || problem.key_insights) && (
             <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes:</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                {problem.personal_notes || problem.approach_notes}
+                {problem.key_insights || problem.personal_notes || problem.approach_notes}
               </div>
             </div>
           )}

@@ -9,12 +9,14 @@ import StreakCounter from '../components/StreakCounter';
 import BadgeShowcase from '../components/BadgeShowcase';
 import CalendarHeatmap from '../components/CalendarHeatmap';
 import RecentActivity from '../components/RecentActivity';
+import RevisionHub from '../components/RevisionHub';
 
-const { FiTrendingUp, FiTarget, FiZap, FiAward } = FiIcons;
+const { FiTrendingUp, FiTarget, FiZap, FiAward, FiBookOpen, FiStar } = FiIcons;
 
 const Dashboard = () => {
-  const { getStats, getMotivationalMessage } = useDSA();
+  const { getStats, getRevisionInsights, getMotivationalMessage } = useDSA();
   const stats = getStats();
+  const revisionInsights = getRevisionInsights();
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -58,7 +60,7 @@ const Dashboard = () => {
 
         {/* Stats Cards */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -109,6 +111,40 @@ const Dashboard = () => {
           >
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Revised</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {stats.revisedProblems}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                <SafeIcon icon={FiBookOpen} className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+            variants={itemVariants}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Interview Ready</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {stats.interviewReadyProblems}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                <SafeIcon icon={FiStar} className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+            variants={itemVariants}
+          >
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Level</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   {stats.level}
@@ -129,13 +165,13 @@ const Dashboard = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total XP</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Confidence</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {stats.totalXP}
+                  {stats.averageConfidence}/5
                 </p>
               </div>
-              <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                <SafeIcon icon={FiAward} className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                <SafeIcon icon={FiAward} className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
           </motion.div>
@@ -152,6 +188,9 @@ const Dashboard = () => {
           <div className="lg:col-span-2 space-y-6">
             <motion.div variants={itemVariants}>
               <DailyTracker />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <RevisionHub />
             </motion.div>
             <motion.div variants={itemVariants}>
               <ProgressOverview />

@@ -18,6 +18,9 @@ const badgeDefinitions = [
   { type: 'first_problem', name: 'First Steps', description: 'Solved your first problem!', icon: '🎯' },
   { type: 'streak_7', name: 'Week Warrior', description: '7-day streak achieved!', icon: '🔥' },
   { type: 'streak_30', name: 'Monthly Master', description: '30-day streak achieved!', icon: '🏆' },
+  { type: 'revision_master', name: 'Revision Master', description: 'Revised 50 problems!', icon: '📚' },
+  { type: 'interview_ready', name: 'Interview Ready', description: '20 problems marked interview-ready!', icon: '💼' },
+  { type: 'confidence_builder', name: 'Confidence Builder', description: 'High confidence on 30 problems!', icon: '💪' },
   { type: 'xp_100', name: '100 XP Club', description: 'Earned 100 XP!', icon: '⭐' },
   { type: 'xp_500', name: '500 XP Hero', description: 'Earned 500 XP!', icon: '💎' },
   { type: 'xp_1000', name: '1000 XP Legend', description: 'Earned 1000 XP!', icon: '👑' },
@@ -25,6 +28,8 @@ const badgeDefinitions = [
   { type: 'medium_10', name: 'Medium Challenger', description: 'Solved 10 medium problems!', icon: '⚡' },
   { type: 'hard_5', name: 'Hard Conqueror', description: 'Solved 5 hard problems!', icon: '🗡️' },
   { type: 'topic_master', name: 'Topic Master', description: 'Completed all problems in a topic!', icon: '🎓' },
+  { type: 'bookworm', name: 'Bookworm', description: 'Bookmarked 25 problems!', icon: '📖' },
+  { type: 'code_collector', name: 'Code Collector', description: 'Saved 50 code snippets!', icon: '💻' }
 ];
 
 export const DSAProvider = ({ children }) => {
@@ -34,8 +39,11 @@ export const DSAProvider = ({ children }) => {
   const [dailyProgress, setDailyProgress] = useState({});
   const [userBadges, setUserBadges] = useState([]);
   const [codeSnippets, setCodeSnippets] = useState({});
+  const [revisionSessions, setRevisionSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState({ current: 0, longest: 0 });
+  const [dailyGoal, setDailyGoal] = useState(1);
+  const [revisionGoal, setRevisionGoal] = useState(0);
 
   // Load data when user changes
   useEffect(() => {
@@ -46,12 +54,20 @@ export const DSAProvider = ({ children }) => {
     }
   }, [user]);
 
+  // Update daily goal when user profile changes
+  useEffect(() => {
+    if (userProfile?.daily_goal) {
+      setDailyGoal(userProfile.daily_goal);
+    }
+  }, [userProfile]);
+
   const resetData = () => {
     setProblems([]);
     setUserProblems([]);
     setDailyProgress({});
     setUserBadges([]);
     setCodeSnippets({});
+    setRevisionSessions([]);
     setStreak({ current: 0, longest: 0 });
     setLoading(false);
   };
@@ -65,7 +81,8 @@ export const DSAProvider = ({ children }) => {
         loadProblems(),
         loadUserProblems(),
         loadDailyProgress(),
-        loadUserBadges()
+        loadUserBadges(),
+        loadRevisionSessions()
       ]);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -107,7 +124,18 @@ export const DSAProvider = ({ children }) => {
       
       const progressMap = {};
       data.forEach(progress => {
-        progressMap[progress.date] = progress;
+        progressMap[progress.date] = {
+          solved: progress.problems_solved,
+          revised: progress.problems_revised,
+          goal: progress.daily_goal,
+          revisionGoal: progress.revision_goal,
+          achieved: progress.goal_achieved,
+          revisionAchieved: progress.revision_goal_achieved,
+          xpEarned: progress.xp_earned,
+          studyTime: progress.study_time_minutes,
+          focusAreas: progress.focus_areas || [],
+          notes: progress.notes
+        };
       });
       
       setDailyProgress(progressMap);
@@ -123,9 +151,30 @@ export const DSAProvider = ({ children }) => {
 
     try {
       const data = await dbHelpers.getUserBadges(user.id);
-      setUserBadges(data);
+      const badgesWithStatus = badgeDefinitions.map(badge => {
+        const unlocked = data.find(ub => ub.badge_type === badge.type);
+        return {
+          ...badge,
+          id: badge.type,
+          unlocked: !!unlocked,
+          unlockedAt: unlocked?.unlocked_at
+        };
+      });
+      setUserBadges(badgesWithStatus);
     } catch (error) {
       console.error('Error loading user badges:', error);
+      throw error;
+    }
+  };
+
+  const loadRevisionSessions = async () => {
+    if (!user) return;
+
+    try {
+      const data = await dbHelpers.getRevisionSessions(user.id);
+      setRevisionSessions(data);
+    } catch (error) {
+      console.error('Error loading revision sessions:', error);
       throw error;
     }
   };
@@ -144,7 +193,7 @@ export const DSAProvider = ({ children }) => {
       const date = sortedDates[i];
       const daysDiff = differenceInDays(today, parseISO(date));
       
-      if (progressData[date].goal_achieved) {
+      if (progressData[date].achieved) {
         if (daysDiff === i) {
           currentStreak++;
         } else {
@@ -157,7 +206,7 @@ export const DSAProvider = ({ children }) => {
 
     // Calculate longest streak
     for (const date of sortedDates) {
-      if (progressData[date].goal_achieved) {
+      if (progressData[date].achieved) {
         tempStreak++;
         longestStreak = Math.max(longestStreak, tempStreak);
       } else {
@@ -175,8 +224,8 @@ export const DSAProvider = ({ children }) => {
       await dbHelpers.updateUserProblemStatus(user.id, problemId, status, additionalData);
       await loadUserProblems();
 
-      // Update daily progress if problem is completed
-      if (status === 'Done') {
+      // Update daily progress if problem is completed or revised
+      if (status === 'Done' || status === 'Needs Revision') {
         await updateTodayProgress();
         await checkBadgeUnlocks();
       }
@@ -185,6 +234,46 @@ export const DSAProvider = ({ children }) => {
     } catch (error) {
       console.error('Error updating problem status:', error);
       toast.error('Failed to update problem status');
+    }
+  };
+
+  const markForRevision = async (problemId, revisionNotes = '') => {
+    if (!user) return;
+
+    try {
+      await dbHelpers.markForRevision(user.id, problemId, revisionNotes);
+      await loadUserProblems();
+      await updateTodayProgress();
+      toast.success('Problem marked for revision');
+    } catch (error) {
+      console.error('Error marking for revision:', error);
+      toast.error('Failed to mark for revision');
+    }
+  };
+
+  const toggleBookmark = async (problemId, isBookmarked) => {
+    if (!user) return;
+
+    try {
+      await dbHelpers.toggleBookmark(user.id, problemId, isBookmarked);
+      await loadUserProblems();
+      toast.success(isBookmarked ? 'Problem bookmarked' : 'Bookmark removed');
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      toast.error('Failed to update bookmark');
+    }
+  };
+
+  const updateConfidenceLevel = async (problemId, confidenceLevel) => {
+    if (!user) return;
+
+    try {
+      await dbHelpers.updateConfidenceLevel(user.id, problemId, confidenceLevel);
+      await loadUserProblems();
+      toast.success('Confidence level updated');
+    } catch (error) {
+      console.error('Error updating confidence level:', error);
+      toast.error('Failed to update confidence level');
     }
   };
 
@@ -198,7 +287,14 @@ export const DSAProvider = ({ children }) => {
       format(parseISO(p.completed_at), 'yyyy-MM-dd') === today
     ).length;
 
+    const revisedToday = userProblems.filter(p => 
+      p.last_revised_at && 
+      format(parseISO(p.last_revised_at), 'yyyy-MM-dd') === today
+    ).length;
+
     const goalAchieved = solvedToday >= userProfile.daily_goal;
+    const revisionGoalAchieved = revisedToday >= (revisionGoal || 0);
+    
     const xpEarned = userProblems
       .filter(p => 
         p.status === 'Done' && 
@@ -210,8 +306,11 @@ export const DSAProvider = ({ children }) => {
     try {
       await dbHelpers.updateDailyProgress(user.id, today, {
         problems_solved: solvedToday,
+        problems_revised: revisedToday,
         daily_goal: userProfile.daily_goal,
+        revision_goal: revisionGoal || 0,
         goal_achieved: goalAchieved,
+        revision_goal_achieved: revisionGoalAchieved,
         xp_earned: xpEarned,
         streak_count: goalAchieved ? streak.current + 1 : 0
       });
@@ -222,10 +321,33 @@ export const DSAProvider = ({ children }) => {
     }
   };
 
+  const updateDailyGoal = async (newGoal) => {
+    if (!user || !userProfile) return;
+
+    try {
+      // Update user profile with new daily goal
+      await dbHelpers.updateUserProfile(user.id, { daily_goal: newGoal });
+      setDailyGoal(newGoal);
+      
+      // Update today's progress with new goal
+      await updateTodayProgress();
+      
+      toast.success(`Daily goal updated to ${newGoal} problems`);
+    } catch (error) {
+      console.error('Error updating daily goal:', error);
+      toast.error('Failed to update daily goal');
+    }
+  };
+
   const checkBadgeUnlocks = async () => {
     if (!user) return;
 
     const solvedProblems = userProblems.filter(p => p.status === 'Done');
+    const revisedProblems = userProblems.filter(p => p.revision_count > 0);
+    const interviewReadyProblems = userProblems.filter(p => p.is_interview_ready);
+    const bookmarkedProblems = userProblems.filter(p => p.is_bookmarked);
+    const highConfidenceProblems = userProblems.filter(p => p.confidence_level >= 4);
+    
     const totalXP = solvedProblems.reduce((sum, p) => sum + (p.xp_reward || 0), 0);
     const easyCount = solvedProblems.filter(p => p.difficulty === 'Easy').length;
     const mediumCount = solvedProblems.filter(p => p.difficulty === 'Medium').length;
@@ -235,7 +357,7 @@ export const DSAProvider = ({ children }) => {
 
     // Check each badge condition
     for (const badge of badgeDefinitions) {
-      const alreadyUnlocked = userBadges.some(ub => ub.badge_type === badge.type);
+      const alreadyUnlocked = userBadges.some(ub => ub.badge_type === badge.type && ub.unlocked);
       if (alreadyUnlocked) continue;
 
       let shouldUnlock = false;
@@ -249,6 +371,15 @@ export const DSAProvider = ({ children }) => {
           break;
         case 'streak_30':
           shouldUnlock = streak.current >= 30;
+          break;
+        case 'revision_master':
+          shouldUnlock = revisedProblems.length >= 50;
+          break;
+        case 'interview_ready':
+          shouldUnlock = interviewReadyProblems.length >= 20;
+          break;
+        case 'confidence_builder':
+          shouldUnlock = highConfidenceProblems.length >= 30;
           break;
         case 'xp_100':
           shouldUnlock = totalXP >= 100;
@@ -267,6 +398,12 @@ export const DSAProvider = ({ children }) => {
           break;
         case 'hard_5':
           shouldUnlock = hardCount >= 5;
+          break;
+        case 'bookworm':
+          shouldUnlock = bookmarkedProblems.length >= 25;
+          break;
+        case 'code_collector':
+          shouldUnlock = Object.values(codeSnippets).flat().length >= 50;
           break;
         case 'topic_master':
           // Check if any topic is completed
@@ -341,20 +478,44 @@ export const DSAProvider = ({ children }) => {
     }
   };
 
+  const createRevisionSession = async (sessionData) => {
+    if (!user) return;
+
+    try {
+      const session = await dbHelpers.createRevisionSession(user.id, sessionData);
+      await loadRevisionSessions();
+      toast.success('Revision session logged!');
+      return session;
+    } catch (error) {
+      console.error('Error creating revision session:', error);
+      toast.error('Failed to log revision session');
+    }
+  };
+
   const getTodayProgress = () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const progress = dailyProgress[today];
     
     return {
-      solved: progress?.problems_solved || 0,
-      goal: userProfile?.daily_goal || 1,
-      achieved: progress?.goal_achieved || false,
-      xpEarned: progress?.xp_earned || 0
+      solved: progress?.solved || 0,
+      revised: progress?.revised || 0,
+      goal: userProfile?.daily_goal || dailyGoal,
+      revisionGoal: progress?.revisionGoal || revisionGoal,
+      achieved: progress?.achieved || false,
+      revisionAchieved: progress?.revisionAchieved || false,
+      xpEarned: progress?.xpEarned || 0,
+      studyTime: progress?.studyTime || 0,
+      focusAreas: progress?.focusAreas || [],
+      notes: progress?.notes || ''
     };
   };
 
   const getStats = () => {
     const solvedProblems = userProblems.filter(p => p.status === 'Done');
+    const revisedProblems = userProblems.filter(p => p.revision_count > 0);
+    const interviewReadyProblems = userProblems.filter(p => p.is_interview_ready);
+    const bookmarkedProblems = userProblems.filter(p => p.is_bookmarked);
+    
     const totalXP = solvedProblems.reduce((sum, p) => sum + (p.xp_reward || 0), 0);
     const level = Math.floor(totalXP / 100) + 1;
     const xpToNextLevel = 100 - (totalXP % 100);
@@ -362,29 +523,68 @@ export const DSAProvider = ({ children }) => {
     return {
       totalProblems: problems.length,
       solvedProblems: solvedProblems.length,
+      revisedProblems: revisedProblems.length,
+      interviewReadyProblems: interviewReadyProblems.length,
+      bookmarkedProblems: bookmarkedProblems.length,
       totalXP,
       level,
       xpToNextLevel,
-      progressPercentage: problems.length > 0 ? Math.round((solvedProblems.length / problems.length) * 100) : 0
+      progressPercentage: problems.length > 0 ? Math.round((solvedProblems.length / problems.length) * 100) : 0,
+      averageConfidence: userProblems.length > 0 
+        ? Math.round(userProblems.reduce((sum, p) => sum + (p.confidence_level || 1), 0) / userProblems.length * 10) / 10
+        : 0
+    };
+  };
+
+  const getRevisionInsights = () => {
+    const needsRevision = userProblems.filter(p => 
+      p.status === 'Needs Revision' || p.confidence_level <= 3
+    );
+    
+    const recentlyRevised = userProblems
+      .filter(p => p.last_revised_at)
+      .sort((a, b) => new Date(b.last_revised_at) - new Date(a.last_revised_at))
+      .slice(0, 10);
+
+    const topicWeaknesses = {};
+    needsRevision.forEach(p => {
+      topicWeaknesses[p.topic] = (topicWeaknesses[p.topic] || 0) + 1;
+    });
+
+    return {
+      needsRevision: needsRevision.length,
+      recentlyRevised,
+      topicWeaknesses: Object.entries(topicWeaknesses)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5)
     };
   };
 
   const getMotivationalMessage = () => {
     const todayProgress = getTodayProgress();
+    const stats = getStats();
+    
     const motivationalQuotes = [
       "Every expert was once a beginner. Keep coding! 💪",
       "The only way to do great work is to love what you do. 🚀",
       "Success is not final, failure is not fatal: it is the courage to continue that counts. 🌟",
       "Don't watch the clock; do what it does. Keep going. ⏰",
-      "The future belongs to those who believe in the beauty of their dreams. ✨"
+      "The future belongs to those who believe in the beauty of their dreams. ✨",
+      "Revision is the key to mastery. Keep reviewing! 📚",
+      "Confidence comes from preparation. You've got this! 💼",
+      "Every problem solved is a step closer to your dream job! 🎯"
     ];
     
     const randomQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
     
-    if (todayProgress.achieved) {
-      return `🎉 Goal achieved! ${randomQuote}`;
+    if (todayProgress.achieved && todayProgress.revisionAchieved) {
+      return `🎉 Both goals achieved! ${randomQuote}`;
+    } else if (todayProgress.achieved) {
+      return `🎯 Daily goal achieved! ${randomQuote}`;
     } else if (streak.current > 0) {
       return `🔥 ${streak.current}-day streak! ${randomQuote}`;
+    } else if (stats.interviewReadyProblems > 10) {
+      return `💼 ${stats.interviewReadyProblems} problems interview-ready! ${randomQuote}`;
     } else {
       return `💪 Fresh start! ${randomQuote}`;
     }
@@ -396,13 +596,23 @@ export const DSAProvider = ({ children }) => {
     dailyProgress,
     userBadges,
     codeSnippets,
+    revisionSessions,
     streak,
     loading,
+    dailyGoal,
+    revisionGoal,
+    setRevisionGoal,
     updateProblemStatus,
+    markForRevision,
+    toggleBookmark,
+    updateConfidenceLevel,
     saveCodeSnippet,
     loadCodeSnippets,
+    createRevisionSession,
+    updateDailyGoal,
     getTodayProgress,
     getStats,
+    getRevisionInsights,
     getMotivationalMessage,
     loadAllData
   };
