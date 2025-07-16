@@ -59,7 +59,16 @@ export const AuthProvider = ({ children }) => {
   const loadUserProfile = async (userId) => {
     try {
       const profile = await dbHelpers.getUserProfile(userId);
-      setUserProfile(profile);
+      
+      // If no profile exists, create one for the authenticated user
+      if (!profile) {
+        const newProfile = await dbHelpers.createUserProfile(user, {
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
+        });
+        setUserProfile(newProfile);
+      } else {
+        setUserProfile(profile);
+      }
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
