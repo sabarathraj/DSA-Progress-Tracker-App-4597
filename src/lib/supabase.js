@@ -68,6 +68,12 @@ export const dbHelpers = {
       `)
       .eq('is_active', true);
 
+    if (filters.onlyExamples) {
+      query = query.is('created_by', null).limit(10);
+    } else if (filters.userId) {
+      query = query.eq('created_by', filters.userId);
+    }
+
     if (filters.difficulty) {
       query = query.eq('difficulty', filters.difficulty);
     }

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { dbHelpers } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { format, subDays, isToday, parseISO, differenceInDays } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -94,7 +95,22 @@ export const DSAProvider = ({ children }) => {
 
   const loadProblems = async () => {
     try {
-      const data = await dbHelpers.getProblems();
+      // Check if user has created any problems
+      let userCreatedCount = 0;
+      if (user) {
+        const { count, error } = await supabase
+          .from('problems')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_by', user.id)
+          .eq('is_active', true);
+        if (!error) userCreatedCount = count;
+      }
+      let data;
+      if (userCreatedCount > 0) {
+        data = await dbHelpers.getProblems({ userId: user.id });
+      } else {
+        data = await dbHelpers.getProblems({ onlyExamples: true });
+      }
       setProblems(data);
     } catch (error) {
       console.error('Error loading problems:', error);
