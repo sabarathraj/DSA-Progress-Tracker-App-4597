@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import Landing from './pages/Landing';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import Problems from './pages/Problems';
@@ -39,6 +40,7 @@ function App() {
               <Navbar />
               <main className="pt-16">
                 <Routes>
+                  <Route path="/landing" element={<Landing />} />
                   <Route path="/" element={
                     <ProtectedRoute>
                       <Dashboard />

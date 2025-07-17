@@ -11,7 +11,7 @@ const {
   FiTarget, FiAward
 } = FiIcons;
 
-const ProblemCard = ({ problem, showRevisionInfo = false }) => {
+const ProblemCard = ({ problem, showRevisionInfo = false, onEdit }) => {
   const { updateProblemStatus, toggleBookmark, markForRevision, updateConfidenceLevel } = useDSA();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -127,6 +127,18 @@ const ProblemCard = ({ problem, showRevisionInfo = false }) => {
               >
                 <SafeIcon icon={FiExternalLink} className="w-4 h-4" />
               </a>
+            )}
+            
+            {onEdit && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(problem);
+                }}
+                className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <SafeIcon icon={FiEdit3} className="w-4 h-4" />
+              </button>
             )}
             
             <button

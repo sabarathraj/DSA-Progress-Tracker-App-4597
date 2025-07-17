@@ -5,8 +5,9 @@ import SafeIcon from '../common/SafeIcon';
 import { useDSA } from '../context/DSAContext';
 import ProblemCard from '../components/ProblemCard';
 import ProblemFilters from '../components/ProblemFilters';
+import ProblemManager from '../components/problems/ProblemManager';
 
-const { FiCode, FiSearch, FiFilter } = FiIcons;
+const { FiCode, FiSearch, FiFilter, FiPlus } = FiIcons;
 
 const Problems = () => {
   const { problems } = useDSA();
@@ -15,6 +16,8 @@ const Problems = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showProblemManager, setShowProblemManager] = useState(false);
+  const [editingProblem, setEditingProblem] = useState(null);
 
   const filteredProblems = useMemo(() => {
     return problems.filter(problem => {
@@ -78,12 +81,24 @@ const Problems = () => {
             </div>
           </div>
           
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="md:hidden p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
-          >
-            <SafeIcon icon={FiFilter} className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                setEditingProblem(null);
+                setShowProblemManager(true);
+              }}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+            >
+              <SafeIcon icon={FiPlus} className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Problem</span>
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="md:hidden p-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+            >
+              <SafeIcon icon={FiFilter} className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          </div>
         </motion.div>
 
         {/* Search Bar */}
@@ -155,12 +170,28 @@ const Problems = () => {
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400">
                   Try adjusting your search or filters
-                </p>
+                <ProblemCard 
+                  problem={problem} 
+                  onEdit={(problem) => {
+                    setEditingProblem(problem);
+                    setShowProblemManager(true);
+                  }}
+                />
               </motion.div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Problem Manager Modal */}
+      <ProblemManager
+        isOpen={showProblemManager}
+        onClose={() => {
+          setShowProblemManager(false);
+          setEditingProblem(null);
+        }}
+        editingProblem={editingProblem}
+      />
     </div>
   );
 };

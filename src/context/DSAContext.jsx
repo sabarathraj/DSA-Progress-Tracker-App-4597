@@ -237,6 +237,46 @@ export const DSAProvider = ({ children }) => {
     }
   };
 
+  const createProblem = async (problemData) => {
+    if (!user) return;
+
+    try {
+      const newProblem = await dbHelpers.createProblem({
+        ...problemData,
+        created_by: user.id
+      });
+      await loadProblems();
+      return newProblem;
+    } catch (error) {
+      console.error('Error creating problem:', error);
+      throw error;
+    }
+  };
+
+  const updateProblem = async (problemId, updates) => {
+    if (!user) return;
+
+    try {
+      const updatedProblem = await dbHelpers.updateProblem(problemId, updates);
+      await loadProblems();
+      return updatedProblem;
+    } catch (error) {
+      console.error('Error updating problem:', error);
+      throw error;
+    }
+  };
+
+  const deleteProblem = async (problemId) => {
+    if (!user) return;
+
+    try {
+      await dbHelpers.deleteProblem(problemId);
+      await loadProblems();
+    } catch (error) {
+      console.error('Error deleting problem:', error);
+      throw error;
+    }
+  };
   const markForRevision = async (problemId, revisionNotes = '') => {
     if (!user) return;
 
@@ -603,6 +643,9 @@ export const DSAProvider = ({ children }) => {
     revisionGoal,
     setRevisionGoal,
     updateProblemStatus,
+    createProblem,
+    updateProblem,
+    deleteProblem,
     markForRevision,
     toggleBookmark,
     updateConfidenceLevel,
