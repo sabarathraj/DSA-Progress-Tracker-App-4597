@@ -5,13 +5,15 @@ import SafeIcon from '../common/SafeIcon';
 import { useDSA } from '../context/DSAContext';
 import ProblemCard from './ProblemCard';
 
-const { FiBookOpen, FiClock, FiTrendingDown, FiStar, FiFilter, FiRefreshCw } = FiIcons;
+const { FiBookOpen, FiClock, FiTrendingDown, FiStar, FiFilter, FiRefreshCw, FiChevronLeft, FiChevronRight } = FiIcons;
 
 const RevisionHub = () => {
   const { userProblems, getRevisionInsights, createRevisionSession } = useDSA();
   const [activeTab, setActiveTab] = useState('needs-revision');
   const [isStartingSession, setIsStartingSession] = useState(false);
   const [sessionType, setSessionType] = useState('general');
+  const [currentPage, setCurrentPage] = useState(0);
+  const ITEMS_PER_PAGE = 4;
 
   const insights = getRevisionInsights();
 
@@ -26,7 +28,7 @@ const RevisionHub = () => {
   const recentlyRevisedProblems = userProblems
     .filter(p => p.last_revised_at)
     .sort((a, b) => new Date(b.last_revised_at) - new Date(a.last_revised_at))
-    .slice(0, 10);
+    .slice(0, 20);
 
   const interviewReadyProblems = userProblems.filter(p => p.is_interview_ready);
 
@@ -37,7 +39,7 @@ const RevisionHub = () => {
       session_type: sessionType,
       problems_revised: [],
       confidence_before: 3,
-      focus_topics: [],
+      topics_covered: [],
       notes: `Started ${sessionType} revision session`
     };
 
@@ -92,6 +94,24 @@ const RevisionHub = () => {
   };
 
   const currentProblems = getCurrentProblems();
+  const totalPages = Math.ceil(currentProblems.length / ITEMS_PER_PAGE);
+  const paginatedProblems = currentProblems.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
+  );
+
+  // Reset pagination when tab changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [activeTab]);
+
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+  };
 
   return (
     <motion.div
@@ -215,12 +235,42 @@ const RevisionHub = () => {
         ))}
       </div>
 
-      {/* Problems Grid */}
+      {/* Problems Grid with Pagination */}
       {currentProblems.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {currentProblems.map((problem) => (
-            <ProblemCard key={problem.id} problem={problem} showRevisionInfo />
-          ))}
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {paginatedProblems.map((problem) => (
+              <ProblemCard key={problem.id} problem={problem} showRevisionInfo />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Showing {currentPage * ITEMS_PER_PAGE + 1} to {Math.min((currentPage + 1) * ITEMS_PER_PAGE, currentProblems.length)} of {currentProblems.length} problems
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 0}
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <SafeIcon icon={FiChevronLeft} className="w-4 h-4" />
+                </button>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {currentPage + 1} of {totalPages}
+                </span>
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages - 1}
+                  className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <SafeIcon icon={FiChevronRight} className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-12">

@@ -105,16 +105,24 @@ export const DSAProvider = ({ children }) => {
           .eq('is_active', true);
         if (!error) userCreatedCount = count;
       }
+      
       let data;
       if (userCreatedCount > 0) {
         data = await dbHelpers.getProblems({ userId: user.id });
       } else {
-        data = await dbHelpers.getProblems({ onlyExamples: true });
+        // Load example problems with proper error handling
+        try {
+          data = await dbHelpers.getProblems({ onlyExamples: true });
+        } catch (exampleError) {
+          console.warn('No example problems found, creating empty array');
+          data = [];
+        }
       }
-      setProblems(data);
+      
+      setProblems(data || []);
     } catch (error) {
       console.error('Error loading problems:', error);
-      throw error;
+      setProblems([]); // Set empty array on error
     }
   };
 
@@ -123,10 +131,10 @@ export const DSAProvider = ({ children }) => {
 
     try {
       const data = await dbHelpers.getUserProblems(user.id);
-      setUserProblems(data);
+      setUserProblems(data || []);
     } catch (error) {
       console.error('Error loading user problems:', error);
-      throw error;
+      setUserProblems([]);
     }
   };
 
@@ -158,7 +166,7 @@ export const DSAProvider = ({ children }) => {
       calculateStreak(progressMap);
     } catch (error) {
       console.error('Error loading daily progress:', error);
-      throw error;
+      setDailyProgress({});
     }
   };
 
@@ -179,7 +187,7 @@ export const DSAProvider = ({ children }) => {
       setUserBadges(badgesWithStatus);
     } catch (error) {
       console.error('Error loading user badges:', error);
-      throw error;
+      setUserBadges([]);
     }
   };
 
@@ -188,10 +196,10 @@ export const DSAProvider = ({ children }) => {
 
     try {
       const data = await dbHelpers.getRevisionSessions(user.id);
-      setRevisionSessions(data);
+      setRevisionSessions(data || []);
     } catch (error) {
       console.error('Error loading revision sessions:', error);
-      throw error;
+      setRevisionSessions([]);
     }
   };
 
@@ -288,11 +296,15 @@ export const DSAProvider = ({ children }) => {
     try {
       await dbHelpers.deleteProblem(problemId);
       await loadProblems();
+      await loadUserProblems(); // Reload user problems to sync UI
+      toast.success('Problem deleted successfully');
     } catch (error) {
       console.error('Error deleting problem:', error);
+      toast.error('Failed to delete problem');
       throw error;
     }
   };
+
   const markForRevision = async (problemId, revisionNotes = '') => {
     if (!user) return;
 

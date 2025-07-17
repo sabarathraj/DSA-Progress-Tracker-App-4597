@@ -6,9 +6,9 @@ import { useDSA } from '../context/DSAContext';
 import ProblemCard from '../components/ProblemCard';
 import ProblemFilters from '../components/ProblemFilters';
 import ProblemManager from '../components/problems/ProblemManager';
-// import ActivationProblemCard from '../components/problems/ActivationProblemCard';
+import LoadingSpinner from '../components/common/LoadingSpinner';
 
-const { FiCode, FiPlus, FiCheckCircle, FiList, FiZap, FiFilter } = FiIcons;
+const { FiCode, FiPlus, FiCheckCircle, FiList, FiZap, FiFilter, FiChevronLeft, FiChevronRight } = FiIcons;
 
 const Problems = () => {
   const { problems, userProblems, loading } = useDSA();
@@ -17,6 +17,8 @@ const Problems = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [isManagerOpen, setIsManagerOpen] = useState(false);
   const [editingProblem, setEditingProblem] = useState(null);
+  const [needActivationPage, setNeedActivationPage] = useState(0);
+  const NEED_ACTIVATION_PER_PAGE = 4;
 
   // Merge problem data with user progress
   const mergedProblems = useMemo(() => {
@@ -45,7 +47,7 @@ const Problems = () => {
   const needActivationProblems = mergedProblems.filter(p => p.status === 'Need Activation');
   const [needActivationList, setNeedActivationList] = useState(needActivationProblems);
 
-  // Group problems by topic
+  // Group problems by topic for Need Activation
   const groupByTopic = (problems) => {
     return problems.reduce((acc, problem) => {
       if (!acc[problem.topic]) acc[problem.topic] = [];
@@ -53,14 +55,25 @@ const Problems = () => {
       return acc;
     }, {});
   };
-  const groupedNeedActivation = groupByTopic(needActivationList);
 
-  // Remove from Need Activation list (does not affect main problems)
+  // Paginate Need Activation problems
+  const totalNeedActivationPages = Math.ceil(needActivationList.length / NEED_ACTIVATION_PER_PAGE);
+  const paginatedNeedActivation = needActivationList.slice(
+    needActivationPage * NEED_ACTIVATION_PER_PAGE,
+    (needActivationPage + 1) * NEED_ACTIVATION_PER_PAGE
+  );
+  const groupedNeedActivation = groupByTopic(paginatedNeedActivation);
+
+  // Remove from Need Activation list
   const handleRemoveFromNeedActivation = (problem) => {
     setNeedActivationList(list => list.filter(p => p.id !== problem.id));
+    // Reset page if current page becomes empty
+    if (paginatedNeedActivation.length === 1 && needActivationPage > 0) {
+      setNeedActivationPage(prev => prev - 1);
+    }
   };
 
-  // Toggle bookmark in Need Activation (optional: call your context or update local state)
+  // Toggle bookmark in Need Activation
   const handleBookmarkToggle = (problem) => {
     setNeedActivationList(list => list.map(p => p.id === problem.id ? { ...p, is_bookmarked: !p.is_bookmarked } : p));
   };
@@ -73,8 +86,12 @@ const Problems = () => {
     } else {
       setNeedActivationList(list => list.map(p => p.id === problem.id ? { ...p, status: newStatus } : p));
     }
-    // Optionally update backend
-    await updateProblemStatus(problem.id, newStatus);
+    // Update backend
+    try {
+      await updateProblemStatus(problem.id, newStatus);
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
   };
 
   // Summary stats
@@ -94,13 +111,48 @@ const Problems = () => {
     setIsManagerOpen(true);
   };
 
+  const handlePrevNeedActivation = () => {
+    setNeedActivationPage(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextNeedActivation = () => {
+    setNeedActivationPage(prev => Math.min(totalNeedActivationPages - 1, prev + 1));
+  };
+
+  if (loading) {
+    return <LoadingSpinner message="Loading problems..." />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
         {/* Need Activation Section */}
         {needActivationList.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-3">Need Activation</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Need Attention</h2>
+              {totalNeedActivationPages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handlePrevNeedActivation}
+                    disabled={needActivationPage === 0}
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <SafeIcon icon={FiChevronLeft} className="w-4 h-4" />
+                  </button>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {needActivationPage + 1} of {totalNeedActivationPages}
+                  </span>
+                  <button
+                    onClick={handleNextNeedActivation}
+                    disabled={needActivationPage === totalNeedActivationPages - 1}
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <SafeIcon icon={FiChevronRight} className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="space-y-6">
               {Object.entries(groupedNeedActivation).map(([topic, problems]) => (
                 <div key={topic}>
@@ -121,6 +173,7 @@ const Problems = () => {
             </div>
           </div>
         )}
+
         {/* Header */}
         <motion.div
           className="flex flex-col md:flex-row md:items-center md:space-x-6 mb-8"
@@ -206,11 +259,7 @@ const Problems = () => {
 
           {/* Problems List */}
           <div className="lg:col-span-3">
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <span className="text-gray-500 dark:text-gray-400">Loading problems...</span>
-              </div>
-            ) : filteredProblems.length === 0 ? (
+            {filteredProblems.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64">
                 <span className="text-gray-500 dark:text-gray-400 mb-2">No problems found for the selected filters.</span>
                 <button
@@ -223,16 +272,18 @@ const Problems = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {filteredProblems.map(problem => (
-                  <ProblemCard key={problem.id} problem={problem} onEdit={handleEdit} onStatusChange={(id, newStatus) => {
-                    // Remove from filteredProblems if status changes out of current filter
-                    // This will be handled by useMemo re-filtering automatically
-                  }} />
+                  <ProblemCard 
+                    key={problem.id} 
+                    problem={problem} 
+                    onEdit={handleEdit}
+                  />
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
+      
       <ProblemManager
         isOpen={isManagerOpen}
         onClose={() => setIsManagerOpen(false)}

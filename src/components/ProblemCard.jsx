@@ -14,8 +14,8 @@ const {
 const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange, onNeedActivationDelete }) => {
   const { updateProblemStatus, toggleBookmark, markForRevision, updateConfidenceLevel } = useDSA();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'details' | 'edit' | null
-  const [localStatus, setLocalStatus] = useState(problem.status);
+  const [modalType, setModalType] = useState(null);
+  const [localStatus, setLocalStatus] = useState(problem.status || 'Not Started');
   const [showNeedsRevision, setShowNeedsRevision] = useState(problem.status === 'Needs Revision');
 
   const getDifficultyColor = (difficulty) => {
@@ -63,7 +63,8 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
       if (newStatus !== 'Needs Revision') setShowNeedsRevision(false);
       else setShowNeedsRevision(true);
     } catch (err) {
-      // If update fails, remove from Needs Revision visually
+      // If update fails, revert local state
+      setLocalStatus(prevStatus);
       if (newStatus === 'Needs Revision') setShowNeedsRevision(false);
       if (onStatusChange && (prevStatus === 'Needs Revision' || prevStatus === 'Done') && newStatus !== prevStatus) {
         onStatusChange(problem.id, newStatus);
@@ -75,7 +76,9 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
     e.stopPropagation();
     try {
       await toggleBookmark(problem.id, !problem.is_bookmarked);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+    }
   };
 
   const handleRevisionMark = async (e) => {
@@ -93,39 +96,40 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
     e.stopPropagation();
     try {
       await updateConfidenceLevel(problem.id, level);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Failed to update confidence:', err);
+    }
   };
 
   return (
     <>
       <motion.div
-        className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-md border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all duration-300 flex flex-col gap-4 min-h-[260px] max-w-full"
+        className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-md border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all duration-300 flex flex-col gap-4 min-h-[280px] max-w-full"
         whileHover={{ y: -3, scale: 1.01 }}
         transition={{ type: 'spring', stiffness: 300, damping: 24 }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors break-words whitespace-normal">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors break-words whitespace-normal line-clamp-2">
               {problem.title}
             </h3>
-            {/* Always show full problem name, no truncation */}
             {problem.is_bookmarked && (
-              <SafeIcon icon={FiBookmark} className="w-4 h-4 text-yellow-500" />
+              <SafeIcon icon={FiBookmark} className="w-4 h-4 text-yellow-500 flex-shrink-0" />
             )}
             {problem.is_interview_ready && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-xs font-semibold text-purple-700 dark:text-purple-300 ml-2">
-                <SafeIcon icon={FiAward} className="w-4 h-4 mr-1" /> Interview Ready
+              <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-xs font-semibold text-purple-700 dark:text-purple-300 ml-2 flex-shrink-0">
+                <SafeIcon icon={FiAward} className="w-3 h-3 mr-1" /> Ready
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); setModalType('details'); setIsModalOpen(true); }}
               className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-800 transition-colors shadow-sm"
               title="View Details"
             >
-              <SafeIcon icon={FiCode} className="w-5 h-5" />
+              <SafeIcon icon={FiCode} className="w-4 h-4" />
             </button>
             {onEdit && (
               <button
@@ -133,7 +137,7 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
                 className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm"
                 title="Edit Problem"
               >
-                <SafeIcon icon={FiEdit3} className="w-5 h-5" />
+                <SafeIcon icon={FiEdit3} className="w-4 h-4" />
               </button>
             )}
             <button
@@ -141,7 +145,7 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
               className={`p-2 rounded-lg ${problem.is_bookmarked ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'} hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors shadow-sm`}
               title={problem.is_bookmarked ? 'Remove Bookmark' : 'Bookmark'}
             >
-              <SafeIcon icon={FiBookmark} className="w-5 h-5" />
+              <SafeIcon icon={FiBookmark} className="w-4 h-4" />
             </button>
             {problem.external_url && (
               <a
@@ -152,10 +156,9 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
                 title="External Link"
                 onClick={(e) => e.stopPropagation()}
               >
-                <SafeIcon icon={FiExternalLink} className="w-5 h-5" />
+                <SafeIcon icon={FiExternalLink} className="w-4 h-4" />
               </a>
             )}
-            {/* Need Activation Delete Button */}
             {onNeedActivationDelete && (
               <button
                 onClick={() => onNeedActivationDelete(problem)}
@@ -163,24 +166,29 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
                 title="Remove from Need Activation"
                 aria-label="Remove from Need Activation"
               >
-                <SafeIcon icon={FiTrash2} className="w-5 h-5" />
+                <SafeIcon icon={FiTrash2} className="w-4 h-4" />
               </button>
             )}
           </div>
         </div>
-        {/* Status & Dropdown */}
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getDifficultyColor(problem.difficulty)}`}>{problem.difficulty}</span>
-          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400">{problem.topic}</span>
+
+        {/* Status & Metadata */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getDifficultyColor(problem.difficulty)}`}>
+            {problem.difficulty}
+          </span>
+          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400">
+            {problem.topic}
+          </span>
           <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-            <SafeIcon icon={FiZap} className="w-4 h-4" />
-            <span>+{problem.xp_reward} XP</span>
+            <SafeIcon icon={FiZap} className="w-3 h-3" />
+            <span>+{problem.xp_reward || 10} XP</span>
           </span>
           <div className="relative">
             <select
               value={localStatus}
               onChange={(e) => handleStatusChange(e.target.value)}
-              className={`appearance-none pr-6 px-3 py-1 text-xs font-semibold rounded-full border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(localStatus)} bg-gray-50 dark:bg-gray-800`}
+              className={`appearance-none pr-6 px-3 py-1 text-xs font-semibold rounded-full border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(localStatus)} cursor-pointer`}
               style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
             >
               <option value="Not Started">Not Started</option>
@@ -188,16 +196,12 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
               <option value="Done">Done</option>
               <option value="Needs Revision">Needs Revision</option>
             </select>
-            {/* Dropdown arrow is always visible and aligned */}
             <span className="pointer-events-none absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <FiChevronDown size={16} />
+              <FiChevronDown size={12} />
             </span>
           </div>
         </div>
-        {/*
-          onStatusChange is called when a status change should remove the card from a filtered list in the parent.
-          The parent Problems page uses useMemo for filteredProblems, so this is handled automatically.
-        */}
+
         {/* Tags */}
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {problem.company_tags?.slice(0, 2).map((tag) => (
@@ -205,41 +209,46 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
               {tag}
             </span>
           ))}
-          {problem.tags?.slice(0, 2).map((tag) => (
+          {problem.pattern_tags?.slice(0, 2).map((tag) => (
             <span key={tag} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md font-medium">
               {tag}
             </span>
           ))}
-          {(problem.tags?.length > 2 || problem.company_tags?.length > 2) && (
+          {((problem.company_tags?.length || 0) + (problem.pattern_tags?.length || 0)) > 4 && (
             <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md font-medium">
-              +{(problem.tags?.length || 0) + (problem.company_tags?.length || 0) - 4} more
+              +{((problem.company_tags?.length || 0) + (problem.pattern_tags?.length || 0)) - 4} more
             </span>
           )}
         </div>
+
         {/* Description */}
         {problem.description && (
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-3 whitespace-pre-line break-words">
             {problem.description}
           </p>
         )}
-        {/* Badges & Notes */}
+
+        {/* Status Badges */}
         <div className="flex flex-wrap gap-2 mb-2">
           {problem.confidence_level >= 4 && localStatus === 'Done' && (
             <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 dark:bg-green-900 text-xs font-semibold text-green-700 dark:text-green-400">
-              <SafeIcon icon={FiTarget} className="w-4 h-4 mr-1" /> High Confidence
+              <SafeIcon icon={FiTarget} className="w-3 h-3 mr-1" /> High Confidence
             </span>
           )}
           {showNeedsRevision && (
             <span className="inline-flex items-center px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900 text-xs font-semibold text-orange-700 dark:text-orange-400">
-              <SafeIcon icon={FiRefreshCw} className="w-4 h-4 mr-1" /> Needs Revision
+              <SafeIcon icon={FiRefreshCw} className="w-3 h-3 mr-1" /> Needs Revision
             </span>
           )}
           {problem.completed_at && (
             <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-600 dark:text-gray-400">
-              <SafeIcon icon={FiCheck} className="w-4 h-4 mr-1" /> Completed: {new Date(problem.completed_at).toLocaleDateString()}
-              </span>
+              <SafeIcon icon={FiCheck} className="w-3 h-3 mr-1" /> 
+              Completed: {new Date(problem.completed_at).toLocaleDateString()}
+            </span>
           )}
         </div>
+
+        {/* Notes Preview */}
         {(problem.personal_notes || problem.approach_notes || problem.key_insights) && (
           <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes:</div>
@@ -248,47 +257,52 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange
             </div>
           </div>
         )}
-              {/* Confidence Level */}
-              {problem.confidence_level && (
-          <div className="flex items-center gap-2 mt-2">
+
+        {/* Confidence Level */}
+        {problem.confidence_level && (
+          <div className="flex items-center gap-2 mt-auto">
             <span className="text-xs text-gray-600 dark:text-gray-400">Confidence:</span>
-                  <div className="flex items-center space-x-1">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        onClick={(e) => handleConfidenceChange(e, level)}
-                  className={`w-5 h-5 rounded-full border-2 transition-colors ${level <= (problem.confidence_level || 0) ? `${getConfidenceColor(problem.confidence_level)} border-current` : 'border-gray-300 dark:border-gray-600'}`}
-                      >
-                        <SafeIcon 
-                          icon={level <= (problem.confidence_level || 0) ? FiHeart : FiHeart} 
-                          className="w-full h-full" 
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-        {/* Mark for Revision */}
+            <div className="flex items-center space-x-1">
+              {[1, 2, 3, 4, 5].map((level) => (
+                <button
+                  key={level}
+                  onClick={(e) => handleConfidenceChange(e, level)}
+                  className={`w-4 h-4 rounded-full border-2 transition-colors ${
+                    level <= (problem.confidence_level || 0) 
+                      ? `${getConfidenceColor(problem.confidence_level)} border-current` 
+                      : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                >
+                  <SafeIcon 
+                    icon={level <= (problem.confidence_level || 0) ? FiHeart : FiHeart} 
+                    className="w-full h-full" 
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mark for Revision Button */}
         {localStatus === 'Done' && (
-              <button
-                onClick={handleRevisionMark}
-            className="mt-2 flex items-center space-x-1 px-3 py-1 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 rounded-md hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors font-semibold"
-              >
-            <SafeIcon icon={FiRefreshCw} className="w-4 h-4" />
-                <span>Mark for Revision</span>
-              </button>
-            )}
+          <button
+            onClick={handleRevisionMark}
+            className="mt-2 flex items-center space-x-1 px-3 py-1 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 rounded-md hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors font-semibold self-start"
+          >
+            <SafeIcon icon={FiRefreshCw} className="w-3 h-3" />
+            <span>Mark for Revision</span>
+          </button>
+        )}
       </motion.div>
 
-      {/* Modal: Details or Edit */}
+      {/* Modal: Details */}
       {isModalOpen && modalType === 'details' && (
-      <ProblemModal
-        problem={problem}
-        isOpen={isModalOpen}
+        <ProblemModal
+          problem={problem}
+          isOpen={isModalOpen}
           onClose={() => { setIsModalOpen(false); setModalType(null); }}
-      />
+        />
       )}
-      {/* Remove the edit modal placeholder logic */}
     </>
   );
 };
