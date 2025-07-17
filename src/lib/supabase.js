@@ -107,14 +107,33 @@ export const dbHelpers = {
   },
 
   async updateProblem(problemId, updates) {
+    if (!problemId) throw new Error('No problem ID provided for update.');
+    // Remove non-existent columns from updates
+    const allowed = ['title','difficulty','topic','description','external_url','leetcode_number','company_tags','pattern_tags','xp_reward','estimated_time_minutes','hints','is_active','created_by'];
+    const sanitized = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.includes(k)));
+    // Debug log
+    console.log('[updateProblem] id:', problemId, 'payload:', sanitized);
+    // Pre-update existence check
+    const { data: exists, error: selectError } = await supabase
+      .from('problems')
+      .select('id')
+      .eq('id', problemId)
+      .maybeSingle();
+    if (selectError) throw selectError;
+    if (!exists) throw new Error(`Problem with id ${problemId} does not exist or is not visible (check RLS policies and is_active status).`);
+    // Proceed with update
+    // Remove empty string UUIDs
+    for (const key of ['id', 'created_by']) {
+      if (sanitized[key] === "") delete sanitized[key];
+    }
     const { data, error } = await supabase
       .from('problems')
-      .update(updates)
+      .update(sanitized)
       .eq('id', problemId)
       .select()
-      .single();
-
+      .maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error('No problem found to update.');
     return data;
   },
 
@@ -196,7 +215,7 @@ export const dbHelpers = {
 
     const { data, error } = await supabase
       .from('user_problems')
-      .upsert(updateData)
+      .upsert(updateData, { onConflict: ['user_id', 'problem_id'] })
       .select()
       .single();
 
@@ -214,7 +233,7 @@ export const dbHelpers = {
         revision_notes: revisionNotes,
         last_revised_at: new Date().toISOString(),
         revision_count: supabase.raw('COALESCE(revision_count, 0) + 1')
-      })
+      }, { onConflict: ['user_id', 'problem_id'] })
       .select()
       .single();
 
@@ -229,7 +248,7 @@ export const dbHelpers = {
         user_id: userId,
         problem_id: problemId,
         is_bookmarked: isBookmarked
-      })
+      }, { onConflict: ['user_id', 'problem_id'] })
       .select()
       .single();
 
@@ -244,7 +263,7 @@ export const dbHelpers = {
         user_id: userId,
         problem_id: problemId,
         confidence_level: confidenceLevel
-      })
+      }, { onConflict: ['user_id', 'problem_id'] })
       .select()
       .single();
 
@@ -374,11 +393,13 @@ export const dbHelpers = {
 
   // Revision Sessions Operations
   async createRevisionSession(userId, sessionData) {
+    // Remove any non-existent columns
+    const { focus_topics, ...cleanSessionData } = sessionData;
     const { data, error } = await supabase
       .from('revision_sessions')
       .insert({
         user_id: userId,
-        ...sessionData
+        ...cleanSessionData
       })
       .select()
       .single();

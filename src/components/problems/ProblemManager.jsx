@@ -78,6 +78,9 @@ const ProblemManager = ({ isOpen, onClose, editingProblem = null }) => {
         xp_reward: parseInt(data.xp_reward),
         estimated_time_minutes: parseInt(data.estimated_time_minutes)
       };
+      // Remove problem_tags and tags if present
+      delete processedData.problem_tags;
+      delete processedData.tags;
 
       if (isEditing) {
         await updateProblem(editingProblem.id, processedData);
@@ -87,6 +90,7 @@ const ProblemManager = ({ isOpen, onClose, editingProblem = null }) => {
         toast.success('Problem created successfully!');
       }
 
+      // After edits, reload all data (problems and userProblems) for UI sync
       await loadAllData();
       onClose();
       reset();

@@ -8,12 +8,15 @@ import ProblemModal from './problems/ProblemModal';
 const { 
   FiExternalLink, FiCheck, FiClock, FiPlay, FiZap, FiCode, 
   FiBookmark, FiStar, FiTrendingDown, FiRefreshCw, FiHeart,
-  FiTarget, FiAward
+  FiTarget, FiAward, FiEdit3, FiChevronDown, FiTrash2
 } = FiIcons;
 
-const ProblemCard = ({ problem, showRevisionInfo = false, onEdit }) => {
+const ProblemCard = ({ problem, showRevisionInfo = false, onEdit, onStatusChange, onNeedActivationDelete }) => {
   const { updateProblemStatus, toggleBookmark, markForRevision, updateConfidenceLevel } = useDSA();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(null); // 'details' | 'edit' | null
+  const [localStatus, setLocalStatus] = useState(problem.status);
+  const [showNeedsRevision, setShowNeedsRevision] = useState(problem.status === 'Needs Revision');
 
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
@@ -49,183 +52,212 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit }) => {
     return 'text-green-600 dark:text-green-400';
   };
 
-  const handleStatusChange = (newStatus) => {
-    updateProblemStatus(problem.id, newStatus);
+  const handleStatusChange = async (newStatus) => {
+    const prevStatus = localStatus;
+    setLocalStatus(newStatus);
+    try {
+      await updateProblemStatus(problem.id, newStatus);
+      if (onStatusChange && (prevStatus === 'Needs Revision' || prevStatus === 'Done') && newStatus !== prevStatus) {
+        onStatusChange(problem.id, newStatus);
+      }
+      if (newStatus !== 'Needs Revision') setShowNeedsRevision(false);
+      else setShowNeedsRevision(true);
+    } catch (err) {
+      // If update fails, remove from Needs Revision visually
+      if (newStatus === 'Needs Revision') setShowNeedsRevision(false);
+      if (onStatusChange && (prevStatus === 'Needs Revision' || prevStatus === 'Done') && newStatus !== prevStatus) {
+        onStatusChange(problem.id, newStatus);
+      }
+    }
   };
 
-  const handleBookmarkToggle = (e) => {
+  const handleBookmarkToggle = async (e) => {
     e.stopPropagation();
-    toggleBookmark(problem.id, !problem.is_bookmarked);
+    try {
+      await toggleBookmark(problem.id, !problem.is_bookmarked);
+    } catch (err) {}
   };
 
-  const handleRevisionMark = (e) => {
+  const handleRevisionMark = async (e) => {
     e.stopPropagation();
-    markForRevision(problem.id, 'Marked for revision from problem card');
+    try {
+      await markForRevision(problem.id, 'Marked for revision from problem card');
+      setShowNeedsRevision(true);
+      setLocalStatus('Needs Revision');
+    } catch (err) {
+      setShowNeedsRevision(false);
+    }
   };
 
-  const handleConfidenceChange = (e, level) => {
+  const handleConfidenceChange = async (e, level) => {
     e.stopPropagation();
-    updateConfidenceLevel(problem.id, level);
+    try {
+      await updateConfidenceLevel(problem.id, level);
+    } catch (err) {}
   };
 
   return (
     <>
       <motion.div
-        className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200 cursor-pointer"
-        whileHover={{ y: -2 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        onClick={() => setIsModalOpen(true)}
+        className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-md border border-gray-100 dark:border-gray-800 hover:shadow-lg transition-all duration-300 flex flex-col gap-4 min-h-[260px] max-w-full"
+        whileHover={{ y: -3, scale: 1.01 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                {problem.title}
-              </h3>
-              {problem.is_bookmarked && (
-                <SafeIcon icon={FiBookmark} className="w-4 h-4 text-yellow-500" />
-              )}
-              {problem.is_interview_ready && (
-                <SafeIcon icon={FiStar} className="w-4 h-4 text-green-500" />
-              )}
-            </div>
-            
-            <div className="flex items-center space-x-2 mb-2">
-              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getDifficultyColor(problem.difficulty)}`}>
-                {problem.difficulty}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors break-words whitespace-normal">
+              {problem.title}
+            </h3>
+            {/* Always show full problem name, no truncation */}
+            {problem.is_bookmarked && (
+              <SafeIcon icon={FiBookmark} className="w-4 h-4 text-yellow-500" />
+            )}
+            {problem.is_interview_ready && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900 text-xs font-semibold text-purple-700 dark:text-purple-300 ml-2">
+                <SafeIcon icon={FiAward} className="w-4 h-4 mr-1" /> Interview Ready
               </span>
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400">
-                {problem.topic}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-                <SafeIcon icon={FiZap} className="w-3 h-3" />
-                <span>+{problem.xp_reward} XP</span>
-              </span>
-            </div>
+            )}
           </div>
-          
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); setModalType('details'); setIsModalOpen(true); }}
+              className="p-2 rounded-lg bg-primary-50 dark:bg-primary-900 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-800 transition-colors shadow-sm"
+              title="View Details"
+            >
+              <SafeIcon icon={FiCode} className="w-5 h-5" />
+            </button>
+            {onEdit && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(problem); }}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                title="Edit Problem"
+              >
+                <SafeIcon icon={FiEdit3} className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={handleBookmarkToggle}
-              className={`p-2 rounded-lg transition-colors ${
-                problem.is_bookmarked
-                  ? 'text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900'
-                  : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`p-2 rounded-lg ${problem.is_bookmarked ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-500' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'} hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors shadow-sm`}
+              title={problem.is_bookmarked ? 'Remove Bookmark' : 'Bookmark'}
             >
-              <SafeIcon icon={FiBookmark} className="w-4 h-4" />
+              <SafeIcon icon={FiBookmark} className="w-5 h-5" />
             </button>
-            
             {problem.external_url && (
               <a
                 href={problem.external_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors shadow-sm"
+                title="External Link"
                 onClick={(e) => e.stopPropagation()}
               >
-                <SafeIcon icon={FiExternalLink} className="w-4 h-4" />
+                <SafeIcon icon={FiExternalLink} className="w-5 h-5" />
               </a>
             )}
-            
-            {onEdit && (
+            {/* Need Activation Delete Button */}
+            {onNeedActivationDelete && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(problem);
-                }}
-                className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                onClick={() => onNeedActivationDelete(problem)}
+                className="p-2 ml-1 rounded-full bg-red-500 text-white border border-red-600 hover:bg-red-600 hover:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transition-colors shadow"
+                title="Remove from Need Activation"
+                aria-label="Remove from Need Activation"
               >
-                <SafeIcon icon={FiEdit3} className="w-4 h-4" />
+                <SafeIcon icon={FiTrash2} className="w-5 h-5" />
               </button>
             )}
-            
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsModalOpen(true);
-              }}
-              className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            >
-              <SafeIcon icon={FiCode} className="w-4 h-4" />
-            </button>
           </div>
         </div>
-
-        {/* Description */}
-        {problem.description && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-            {problem.description}
-          </p>
-        )}
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {problem.tags?.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md"
-            >
-              {tag}
-            </span>
-          ))}
-          {problem.company_tags?.slice(0, 2).map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-md"
-            >
-              {tag}
-            </span>
-          ))}
-          {(problem.tags?.length > 3 || problem.company_tags?.length > 2) && (
-            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md">
-              +{(problem.tags?.length || 0) + (problem.company_tags?.length || 0) - 5} more
-            </span>
-          )}
-        </div>
-
-        {/* Status and Actions */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <SafeIcon icon={getStatusIcon(problem.status)} className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Status:
-              </span>
-            </div>
+        {/* Status & Dropdown */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getDifficultyColor(problem.difficulty)}`}>{problem.difficulty}</span>
+          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400">{problem.topic}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+            <SafeIcon icon={FiZap} className="w-4 h-4" />
+            <span>+{problem.xp_reward} XP</span>
+          </span>
+          <div className="relative">
             <select
-              value={problem.status}
-              onChange={(e) => {
-                e.stopPropagation();
-                handleStatusChange(e.target.value);
-              }}
-              className={`px-3 py-1 text-sm font-medium rounded-full border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(problem.status)}`}
+              value={localStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={`appearance-none pr-6 px-3 py-1 text-xs font-semibold rounded-full border-0 focus:ring-2 focus:ring-primary-500 ${getStatusColor(localStatus)} bg-gray-50 dark:bg-gray-800`}
+              style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
             >
               <option value="Not Started">Not Started</option>
               <option value="In Progress">In Progress</option>
               <option value="Done">Done</option>
               <option value="Needs Revision">Needs Revision</option>
             </select>
+            {/* Dropdown arrow is always visible and aligned */}
+            <span className="pointer-events-none absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <FiChevronDown size={16} />
+            </span>
           </div>
-
-          {/* Revision Info */}
-          {showRevisionInfo && (
-            <div className="space-y-2">
+        </div>
+        {/*
+          onStatusChange is called when a status change should remove the card from a filtered list in the parent.
+          The parent Problems page uses useMemo for filteredProblems, so this is handled automatically.
+        */}
+        {/* Tags */}
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {problem.company_tags?.slice(0, 2).map((tag) => (
+            <span key={tag} className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-md font-medium">
+              {tag}
+            </span>
+          ))}
+          {problem.tags?.slice(0, 2).map((tag) => (
+            <span key={tag} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md font-medium">
+              {tag}
+            </span>
+          ))}
+          {(problem.tags?.length > 2 || problem.company_tags?.length > 2) && (
+            <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md font-medium">
+              +{(problem.tags?.length || 0) + (problem.company_tags?.length || 0) - 4} more
+            </span>
+          )}
+        </div>
+        {/* Description */}
+        {problem.description && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-3 whitespace-pre-line break-words">
+            {problem.description}
+          </p>
+        )}
+        {/* Badges & Notes */}
+        <div className="flex flex-wrap gap-2 mb-2">
+          {problem.confidence_level >= 4 && localStatus === 'Done' && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 dark:bg-green-900 text-xs font-semibold text-green-700 dark:text-green-400">
+              <SafeIcon icon={FiTarget} className="w-4 h-4 mr-1" /> High Confidence
+            </span>
+          )}
+          {showNeedsRevision && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900 text-xs font-semibold text-orange-700 dark:text-orange-400">
+              <SafeIcon icon={FiRefreshCw} className="w-4 h-4 mr-1" /> Needs Revision
+            </span>
+          )}
+          {problem.completed_at && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-600 dark:text-gray-400">
+              <SafeIcon icon={FiCheck} className="w-4 h-4 mr-1" /> Completed: {new Date(problem.completed_at).toLocaleDateString()}
+              </span>
+          )}
+        </div>
+        {(problem.personal_notes || problem.approach_notes || problem.key_insights) && (
+          <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes:</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+              {problem.key_insights || problem.personal_notes || problem.approach_notes}
+            </div>
+          </div>
+        )}
               {/* Confidence Level */}
               {problem.confidence_level && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Confidence:</span>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-gray-600 dark:text-gray-400">Confidence:</span>
                   <div className="flex items-center space-x-1">
                     {[1, 2, 3, 4, 5].map((level) => (
                       <button
                         key={level}
                         onClick={(e) => handleConfidenceChange(e, level)}
-                        className={`w-4 h-4 rounded-full border-2 transition-colors ${
-                          level <= (problem.confidence_level || 0)
-                            ? `${getConfidenceColor(problem.confidence_level)} border-current`
-                            : 'border-gray-300 dark:border-gray-600'
-                        }`}
+                  className={`w-5 h-5 rounded-full border-2 transition-colors ${level <= (problem.confidence_level || 0) ? `${getConfidenceColor(problem.confidence_level)} border-current` : 'border-gray-300 dark:border-gray-600'}`}
                       >
                         <SafeIcon 
                           icon={level <= (problem.confidence_level || 0) ? FiHeart : FiHeart} 
@@ -236,81 +268,27 @@ const ProblemCard = ({ problem, showRevisionInfo = false, onEdit }) => {
                   </div>
                 </div>
               )}
-
-              {/* Revision Count */}
-              {problem.revision_count > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Revisions:</span>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {problem.revision_count}
-                  </span>
-                </div>
-              )}
-
-              {/* Last Revised */}
-              {problem.last_revised_at && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Last Revised:</span>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {new Date(problem.last_revised_at).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Quick Actions */}
-          <div className="flex items-center space-x-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-            {problem.status === 'Done' && (
+        {/* Mark for Revision */}
+        {localStatus === 'Done' && (
               <button
                 onClick={handleRevisionMark}
-                className="flex items-center space-x-1 px-2 py-1 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 rounded-md hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors"
+            className="mt-2 flex items-center space-x-1 px-3 py-1 text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 rounded-md hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors font-semibold"
               >
-                <SafeIcon icon={FiRefreshCw} className="w-3 h-3" />
+            <SafeIcon icon={FiRefreshCw} className="w-4 h-4" />
                 <span>Mark for Revision</span>
               </button>
             )}
-            
-            {problem.confidence_level >= 4 && problem.status === 'Done' && (
-              <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 rounded-md">
-                <SafeIcon icon={FiTarget} className="w-3 h-3" />
-                <span>High Confidence</span>
-              </div>
-            )}
-            
-            {problem.is_interview_ready && (
-              <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 rounded-md">
-                <SafeIcon icon={FiAward} className="w-3 h-3" />
-                <span>Interview Ready</span>
-              </div>
-            )}
-          </div>
-
-          {/* Notes Preview */}
-          {(problem.personal_notes || problem.approach_notes || problem.key_insights) && (
-            <div className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes:</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                {problem.key_insights || problem.personal_notes || problem.approach_notes}
-              </div>
-            </div>
-          )}
-
-          {/* Completion Date */}
-          {problem.completed_at && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
-              <SafeIcon icon={FiCheck} className="w-3 h-3" />
-              <span>Completed: {new Date(problem.completed_at).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
       </motion.div>
 
+      {/* Modal: Details or Edit */}
+      {isModalOpen && modalType === 'details' && (
       <ProblemModal
         problem={problem}
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+          onClose={() => { setIsModalOpen(false); setModalType(null); }}
       />
+      )}
+      {/* Remove the edit modal placeholder logic */}
     </>
   );
 };
