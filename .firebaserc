@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "dsatracker-3a7fa"
+  },
+  "targets": {
+    "dsatracker-3a7fa": {
+      "hosting": {
+        "dsatracker": [
+          "dsatracker"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
